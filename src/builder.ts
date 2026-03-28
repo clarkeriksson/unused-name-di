@@ -1,19 +1,34 @@
 import type { MissingServiceKeys, ServiceArgs, ServiceFactory, ServiceInfoLookup, ServiceInstance, ServiceKeysForServices, ServiceLookup, ServiceProvider, SingletonServiceInfo, TransientServiceInfo } from "./service.js";
 
+type Prettify<T> = {
+    [K in keyof T]: T[K];
+} & {};
+
+declare const SERVICE_IMPL: unique symbol;
+declare const SERVICE_TYPE: unique symbol;
+type ServiceToken<Interface, Type extends Interface> = symbol & { [SERVICE_TYPE]: Interface, [SERVICE_IMPL]: Type };
+const _token = <Interface, Type extends Interface>() => Symbol() as ServiceToken<Interface, Type>;
+
 export interface InjectionContainerBuilder<
     Services extends ServiceLookup,
     ServiceInfo extends ServiceInfoLookup = {}
 > {
     singleton<const ServiceKey extends keyof Services>(key: ServiceKey): {
         use<Service extends Services[ServiceKey]>(provider: ServiceProvider<Service>)
-            : InjectionContainerBuilder<Services, ServiceInfo & { [Key in ServiceKey]: SingletonServiceInfo<Service> }>;
+            : InjectionContainerBuilder<
+                Services, 
+                Prettify<ServiceInfo & { [Key in ServiceKey]: SingletonServiceInfo<Service> }>
+            >;
     };
     transient<const ServiceKey extends keyof Services>(key: ServiceKey): {
         use<Service extends Services[ServiceKey]>(provider: ServiceProvider<Service>)
-            : InjectionContainerBuilder<Services, ServiceInfo & { [Key in ServiceKey]: TransientServiceInfo<Service> }>;
+            : InjectionContainerBuilder<
+                Services, 
+                Prettify<ServiceInfo & { [Key in ServiceKey]: TransientServiceInfo<Service> }>
+            >;
     };
     build: MissingServiceKeys<Services, ServiceInfo> extends never ? () => InjectionContainer<ServiceInfo> : never;
-    inject<ServiceKeys extends ServiceKeysForServices<Services, ServiceArgs<Provider>>, Provider extends ServiceProvider>(
+    inject<const ServiceKeys extends ServiceKeysForServices<Services, ServiceArgs<Provider>>, Provider extends ServiceProvider>(
         ...keys: ServiceKeys
     ): (provider: Provider) => void;
 }
@@ -68,6 +83,8 @@ export class BuilderImpl<
     build = ((): InjectionContainer<ServiceInfo> => {
         const container = new ContainerImpl<ServiceInfo>();
 
+        container._services = this.services;
+
         const infoItems = Object.entries(this.services);
         for (let i = 0; i < infoItems.length; i++) {
             const [k, info] = infoItems[i];
@@ -107,6 +124,26 @@ class ContainerImpl<ServiceInfo extends ServiceInfoLookup = {}> implements Injec
     _singletons: Record<PropertyKey, any> = {};
 
     resolve<const ServiceKey extends keyof ServiceInfo>(key: ServiceKey): ServiceInstance<ServiceInfo[ServiceKey]["service"]> {
-        throw new Error(key.toString());
+        const info = this._services[key];
+        if (!info) throw new Error(`Unable to resolve service for key '${String(key ?? "N/A")}'`);
+
+        if (info.type === "singleton") {
+            const existing = this._singletons[key];
+            if (existing) return existing;
+        }
+        
+        let service: any;
+        if (info.simple) {
+            service = info.service();
+        } else {
+            const args = info.deps.map(d => d());
+            service = info.service(...args);
+        }
+
+        if (info.type === "singleton") {
+            this._singletons[key] = service;
+        }
+
+        return service;
     }
 }
