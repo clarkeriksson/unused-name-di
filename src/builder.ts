@@ -1,3 +1,5 @@
+import type { MissingServiceKeys, ServiceArgs, ServiceFactory, ServiceInfoLookup, ServiceInstance, ServiceKeysForServices, ServiceLookup, ServiceProvider, SingletonServiceInfo, TransientServiceInfo } from "./service.js";
+
 export interface InjectionContainerBuilder<
     Services extends ServiceLookup,
     ServiceInfo extends ServiceInfoLookup = {}
