@@ -3,6 +3,10 @@ import { DI } from "./container.js";
 
 function asyncFn(delay?: number) { return new Promise<void>(resolve => setTimeout(() => resolve, delay ?? 0)) }
 
+export class GlobalConfig {
+    apiKey: string = "keykeykey";
+}
+
 export interface NameService {
     chat: ChatService;
     setName(name: string): void;
@@ -28,7 +32,7 @@ export interface ChatService {
 }
 
 export class ChatServiceImpl implements ChatService {
-    static { DI.inject(ChatServiceImpl)("DateService", "FileService1"); }
+    static { DI.inject(this)("DateService", "FileService1"); }
     private date: DateService;
     async msg(msg: string) { return; }
     async login(username: string, password: string) { await asyncFn(); return true; }

@@ -2,7 +2,7 @@
 import { test, expect } from "vitest";
 
 import { DI } from "./container";
-import { FileServiceImpl, ImageServiceImpl } from "./setup";
+import { ChatServiceImpl, FileServiceImpl, GlobalConfig, ImageServiceImpl } from "./setup";
 
 test("container is initialized", () => {
     expect(DI).toBeDefined();
@@ -46,4 +46,16 @@ test("singleton services are the same instance", () => {
     expect(imageService1).toBeInstanceOf(ImageServiceImpl);
 
     expect(imageService0).toBe(imageService1);
+});
+
+test("services injected in static blocks work", () => {
+    const chatService = DI.resolve("ChatService");
+    expect(chatService).toBeDefined();
+    expect(chatService).toBeInstanceOf(ChatServiceImpl);
+});
+
+test("services registered by implementation alone work", () => {
+    const configService = DI.resolve("GlobalConfig");
+    expect(configService).toBeDefined();
+    expect(configService).toBeInstanceOf(GlobalConfig)
 });

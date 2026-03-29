@@ -6,6 +6,7 @@ import {
     ImageService,
     VideoService,
     FileService,
+    GlobalConfig,
     NameServiceFactory,
     DateServiceImpl,
     ChatServiceImpl,
@@ -16,6 +17,7 @@ import {
 } from "./setup"
 
 export const DI = UnusedName.builder()
+    .singleton("GlobalConfig").use(() => GlobalConfig)
     .singleton("NameService").use<NameService>(() => NameServiceFactory)
     .transient("DateService").use<DateService>(() => DateServiceImpl)
     .transient("ChatService").use<ChatService>(() => ChatServiceImpl)
