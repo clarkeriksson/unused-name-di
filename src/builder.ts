@@ -1,87 +1,103 @@
-import type { MissingServiceKeys, ServiceArgs, ServiceFactory, ServiceInfoLookup, ServiceInstance, ServiceKeysForServices, ServiceLookup, ServiceProvider, SingletonServiceInfo, TransientServiceInfo } from "./service.js";
+import type { MissingServiceKeys, ServiceArgs, ServiceFactory, ServiceInfo, ServiceInfoLookup, ServiceInstance, ServiceKeysForServices, ServiceProvider, SingletonServiceInfo, TransientServiceInfo } from "./service.js";
 
 type Prettify<T> = {
     [K in keyof T]: T[K];
 } & {};
 
-declare const SERVICE_IMPL: unique symbol;
-declare const SERVICE_TYPE: unique symbol;
-type ServiceToken<Interface, Type extends Interface> = symbol & { [SERVICE_TYPE]: Interface, [SERVICE_IMPL]: Type };
-const _token = <Interface, Type extends Interface>() => Symbol() as ServiceToken<Interface, Type>;
+export type KeysForValues<T extends Record<PropertyKey, ServiceInfo>, Values extends readonly any[]> = {
+    [Index in keyof Values]: {
+        [Key in keyof T]: Values[Index] extends ServiceInstance<T[Key]["service"]> ? Key : never;
+    }[keyof T];
+};
 
 export interface InjectionContainerBuilder<
-    Services extends ServiceLookup,
-    ServiceInfo extends ServiceInfoLookup = {}
+    ExpectedServices extends readonly { key: PropertyKey, info: ServiceInfo }[] = readonly [],
+    ServiceLookup extends Record<PropertyKey, ServiceInfo> = {}
 > {
-    singleton<const ServiceKey extends keyof Services>(key: ServiceKey): {
-        use<Service extends Services[ServiceKey]>(provider: ServiceProvider<Service>)
-            : InjectionContainerBuilder<
-                Services, 
-                Prettify<ServiceInfo & { [Key in ServiceKey]: SingletonServiceInfo<Service> }>
-            >;
-    };
-    transient<const ServiceKey extends keyof Services>(key: ServiceKey): {
-        use<Service extends Services[ServiceKey]>(provider: ServiceProvider<Service>)
-            : InjectionContainerBuilder<
-                Services, 
-                Prettify<ServiceInfo & { [Key in ServiceKey]: TransientServiceInfo<Service> }>
-            >;
-    };
-    build: MissingServiceKeys<Services, ServiceInfo> extends never ? () => InjectionContainer<ServiceInfo> : never;
-    inject<const ServiceKeys extends ServiceKeysForServices<Services, ServiceArgs<Provider>>, Provider extends ServiceProvider>(
-        ...keys: ServiceKeys
-    ): (provider: Provider) => void;
+    singleton<const ServiceKey extends PropertyKey>(key: ServiceKey): {
+        type: <ServiceType>() => InjectionContainerBuilder<
+            readonly [...ExpectedServices, { key: ServiceKey, info: SingletonServiceInfo<ServiceType> }],
+            Prettify<ServiceLookup & { [Key in ServiceKey]: SingletonServiceInfo<ServiceType> }>
+        >;
+    }
+    transient<const ServiceKey extends PropertyKey>(key: ServiceKey): {
+        type: <ServiceType>() => InjectionContainerBuilder<
+            readonly [...ExpectedServices, { key: ServiceKey, info: TransientServiceInfo<ServiceType> }],
+            Prettify<ServiceLookup & { [Key in ServiceKey]: TransientServiceInfo<ServiceType> }>
+        >;
+    }
+    build<
+        Providers extends { [Index in keyof ExpectedServices]: ServiceProvider<ServiceInstance<ExpectedServices[Index]["info"]["service"]>> }
+    >(providers: Providers): InjectionContainer<ServiceLookup>;
+    inject<const Provider extends ServiceProvider>(provider: Provider)
+        : <const ServiceKeys extends KeysForValues<ServiceLookup, ServiceArgs<Provider>>>(...keys: ServiceKeys) => void
 }
 
 export interface InjectionContainer<
-    ServiceInfo extends ServiceInfoLookup
+    ServiceLookup extends Record<PropertyKey, ServiceInfo>
 > {
-    resolve<const ServiceKey extends keyof ServiceInfo>(key: ServiceKey): ServiceInstance<ServiceInfo[ServiceKey]["service"]>;
+    resolve<const ServiceKey extends keyof ServiceLookup>(key: ServiceKey): ServiceInstance<ServiceLookup[ServiceKey]["service"]>;
 }
 
 export class BuilderImpl<
-    Services extends ServiceLookup,
-    ServiceInfo extends ServiceInfoLookup = {}
-> implements InjectionContainerBuilder<Services, ServiceInfo> {
-    private readonly services: ServiceInfo = {} as ServiceInfo;
+    ExpectedServices extends readonly { key: PropertyKey, info: ServiceInfo }[] = readonly [],
+    ServiceLookup extends Record<PropertyKey, ServiceInfo> = {}
+> implements InjectionContainerBuilder<ExpectedServices, ServiceLookup> {
+    private readonly expected?: ExpectedServices = [] as any;
+    private readonly services: ServiceLookup = {} as ServiceLookup;
     private readonly depMap: WeakMap<any, Set<PropertyKey>> = new WeakMap();
     
-    singleton<const ServiceKey extends keyof Services>(key: ServiceKey) {
+    singleton<const ServiceKey extends PropertyKey>(key: ServiceKey) {
         return {
-            use: <Service>(provider: ServiceProvider<Service>) => {
-                (this.services as ServiceInfoLookup)[key] = {
-                    type: "singleton",
-                    service: BuilderImpl.normalize(provider),
-                    simple: true
-                }
+            type: <ServiceType>() => {
+                (this.expected as unknown as { key: PropertyKey, info: ServiceInfo }[]).push({
+                    key,
+                    info: {
+                        type: "singleton",
+                        service: null as any,
+                        simple: true
+                    }
+                });
                 return this as any;
             }
         }
     }
 
-    transient<const ServiceKey extends keyof Services>(key: ServiceKey) {
+    transient<const ServiceKey extends PropertyKey>(key: ServiceKey) {
         return {
-            use: <Service>(provider: ServiceProvider<Service>) => {
-                (this.services as ServiceInfoLookup)[key] = {
-                    type: "transient",
-                    service: BuilderImpl.normalize(provider),
-                    simple: true
-                }
+            type: <ServiceType>() => {
+                (this.expected as unknown as { key: PropertyKey, info: ServiceInfo }[]).push({
+                    key,
+                    info: {
+                        type: "transient",
+                        service: null as any,
+                        simple: true
+                    }
+                });
                 return this as any;
             }
         }
     }
 
-    inject<ServiceKeys extends ServiceKeysForServices<Services, ServiceArgs<Provider>>, Provider extends ServiceProvider>(
-        ...keys: ServiceKeys
-    ): (provider: Provider) => void {
-        return provider => {
+    inject<const Provider extends ServiceProvider>(provider: Provider): <const ServiceKeys extends KeysForValues<ServiceLookup, ServiceArgs<Provider>>>(...keys: ServiceKeys) => void {
+        return (...keys) => {
             this.depMap.set(provider, new Set(keys));
         }
     }
 
-    build = ((): InjectionContainer<ServiceInfo> => {
-        const container = new ContainerImpl<ServiceInfo>();
+    build<
+        Providers extends { [Index in keyof ExpectedServices]: ServiceProvider<ServiceInstance<ExpectedServices[Index]["info"]["service"]>> }
+    >(providers: Providers): InjectionContainer<ServiceLookup> {
+        const container = new ContainerImpl<ServiceLookup>();
+
+        for (let i = 0; i < providers.length; i++) {
+            const curr = providers[i];
+            (this.expected![i].info as any).service = BuilderImpl.normalize(curr);
+        }
+
+        (this.services as any) = Object.fromEntries(
+            this.expected!.map(e => ([e.key, e.info]))
+        );
 
         container._services = this.services;
 
@@ -103,7 +119,7 @@ export class BuilderImpl<
         }
 
         return container;
-    }) as MissingServiceKeys<Services, ServiceInfo> extends never ? () => InjectionContainer<ServiceInfo> : never;
+    };
 
     private static isClass(fn: unknown): fn is new (...args: any[]) => any {
         return typeof fn === "function" && !!fn.prototype?.constructor;
