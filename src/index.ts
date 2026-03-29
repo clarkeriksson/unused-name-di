@@ -1,8 +1,8 @@
-import { type InjectionContainerBuilder, type InjectionContainer, BuilderImpl } from "./builder.js";
+import { InjectionContainer, InjectionContainerImpl } from "./builder.js";
 import { ServiceLookup } from "./service.js";
 
-function builder(): InjectionContainerBuilder {
-    return new BuilderImpl();
+function builder(): InjectionContainer {
+    return new InjectionContainerImpl();
 }
 
 const UnusedName = {
@@ -11,6 +11,5 @@ const UnusedName = {
 
 export { 
     UnusedName, 
-    type InjectionContainer, 
-    type InjectionContainerBuilder
+    type InjectionContainer
 };

@@ -43,9 +43,9 @@ export type ServiceLookup = Record<PropertyKey, any>;
 /**
  * Metadata type for singleton services.
  */
-export type SingletonServiceInfo<T = any> = {
+export type SingletonServiceInfo<T = any, Args extends any[] = any[]> = {
     readonly type: "singleton",
-    readonly service: ServiceFactory<T>
+    readonly service: ServiceFactory<T, Args>
 } & ({
     simple: false,
     deps: (() => any)[]
@@ -57,9 +57,9 @@ export type SingletonServiceInfo<T = any> = {
 /**
  * Metadata type for transient services.
  */
-export type TransientServiceInfo<T = any> = {
+export type TransientServiceInfo<T = any, Args extends any[] = any[]> = {
     readonly type: "transient",
-    readonly service: ServiceFactory<T>
+    readonly service: ServiceFactory<T, Args>
 } & ({
     simple: false,
     deps: (() => any)[]
@@ -71,9 +71,9 @@ export type TransientServiceInfo<T = any> = {
 /**
  * Metadata type for services.
  */
-export type ServiceInfo<T = any> =
-    | SingletonServiceInfo<T>
-    | TransientServiceInfo<T>;
+export type ServiceInfo<T = any, Args extends any[] = any[]> =
+    | SingletonServiceInfo<T, Args>
+    | TransientServiceInfo<T, Args>;
 
 /**
  * Record type of service keys mapping to service info types.

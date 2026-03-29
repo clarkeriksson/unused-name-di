@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { test, expect } from "vitest";
 
-import { DI, FileServiceImpl, ImageServiceImpl } from "./setup";
+import { DI } from "./container";
+import { FileServiceImpl, ImageServiceImpl } from "./setup";
 
 test("container is initialized", () => {
     expect(DI).toBeDefined();
