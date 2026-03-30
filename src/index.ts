@@ -1,4 +1,4 @@
-import { InjectionContainer, InjectionContainerImpl } from "./builder.js";
+import { InjectionContainer, InjectionContainerImpl } from "./container.js";
 
 function builder(): InjectionContainer {
     return new InjectionContainerImpl();

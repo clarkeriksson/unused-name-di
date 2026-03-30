@@ -14,8 +14,10 @@ import { UnusedName } from "unused-name";
  *  - (Optional) Interface to register service under
  */
 export const di = UnusedName.builder()
+    .primitive("AppName").use("SomeAppName")
     .singleton("AppConfig").use(() => AppConfig)
     .transient("FileService").use(() => FileService)
+    .primitive("PixelWidth").use(16)
     .transient("ChatService").use<ChatService>(() => ChatServiceImpl)
     .singleton("ImageService").use<ImageService>(() => ImageService)
     .singleton("VideoService").use<VideoService>(() => VideoServiceFactory)
@@ -67,8 +69,8 @@ interface ImageService {
 class ImageServiceImpl implements ImageService {
     private readonly file: FileService;
 
-    static { di.inject(this)("FileService") }
-    constructor(file: FileService) {
+    static { di.inject(this)("FileService", "PixelWidth") }
+    constructor(file: FileService, pixelWidth: number) {
         this.file = file;
     }
 
@@ -98,12 +100,12 @@ interface EmailService {
     sendEmail(recipients: string[], subject: string, body: string): Promise<boolean>;
 }
 
-function EmailServiceFactory(image: ImageService, video: VideoService): EmailService {
+function EmailServiceFactory(image: ImageService, video: VideoService, appName: string): EmailService {
     return {
         sendEmail(recipients: string[], subject: string, body: string) { ... }
     }
 }
-di.inject(EmailServiceFactory)("ImageService", "VideoService");
+di.inject(EmailServiceFactory)("ImageService", "VideoService", "AppName");
 ```
 
 ## Usage
@@ -117,6 +119,8 @@ const image: ImageService = DI.resolve("ImageService");
 const video: VideoService = DI.resolve("VideoService");
 const email: EmailService = DI.resolve("EmailService");
 const chat: ChatService = DI.resolve("ChatService");
+const pixel: number = DI.resolve("PixelWidth");
+const name: string = DI.resolve("AppName");
 ```
 
 Singleton services will always be the same reference.
@@ -135,4 +139,28 @@ const email0 = DI.resolve("EmailService");
 const email1 = DI.resolve("EmailService");
 console.log(email0 === email1);
 // false
+```
+
+Primitive services are returned by value, and therefore readonly. The primitive service option is just a nicer way to
+do what is functionally equivalent to registering a primitive getter to a singleton or transient service.
+
+To avoid needing to specify the exact value as a const type at the service provider, primitive services are broadened
+to their parent primitive type for the purposes of injection. They are still registered as const types.
+
+```typescript
+// WORKS
+class PrimitiveExample1 {
+    static { di.inject(this)("PixelWidth", "AppName") }
+    constructor(pixelWidth: 16, appName: "SomeAppName") {
+        ...
+    }
+}
+
+// ALSO WORKS, PREFERABLE
+class PrimitiveExample2 {
+    static { di.inject(this)("PixelWidth", "AppName"); }
+    constructor(pixelWidth: number, appName: string) {
+        ...
+    }
+}
 ```

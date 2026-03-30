@@ -59,3 +59,13 @@ test("services registered by implementation alone work", () => {
     expect(configService).toBeDefined();
     expect(configService).toBeInstanceOf(GlobalConfig)
 });
+
+test("value services work", () => {
+    const appIdService = DI.resolve("AppId");
+    expect(appIdService).toBeDefined();
+    expect(appIdService).toBe("AnApp");
+
+    const pixelWidthService = DI.resolve("PixelWidth");
+    expect(pixelWidthService).toBeDefined();
+    expect(pixelWidthService).toBe(16);
+})

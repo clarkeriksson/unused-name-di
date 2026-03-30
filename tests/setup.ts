@@ -1,4 +1,3 @@
-import { UnusedName } from "../src/index.js";
 import { DI } from "./container.js";
 
 function asyncFn(delay?: number) { return new Promise<void>(resolve => setTimeout(() => resolve, delay ?? 0)) }
@@ -32,11 +31,11 @@ export interface ChatService {
 }
 
 export class ChatServiceImpl implements ChatService {
-    static { DI.inject(this)("DateService", "FileService1"); }
+    static { DI.inject(this)("DateService", "FileService1", "PixelWidth"); }
     private date: DateService;
     async msg(msg: string) { return; }
     async login(username: string, password: string) { await asyncFn(); return true; }
-    constructor(date: DateService, file: FileService) {
+    constructor(date: DateService, file: FileService, pixelWidth: number) {
         this.date = date;
     }
 }
