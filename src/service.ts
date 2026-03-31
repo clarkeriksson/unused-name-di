@@ -40,7 +40,21 @@ export type ServiceArgs<Provider extends ServiceProvider> =
  */
 export type SingletonServiceInfo<T = any, Args extends any[] = any[]> = {
     readonly type: "singleton",
-    readonly service: ServiceFactory<T, Args>
+    factory: ServiceFactory<T, Args>
+} & ({
+    simple: false,
+    deps: (() => any)[]
+} | {
+    simple: true,
+    deps?: (() => any)[]
+});
+
+/**
+ * Metadata type for scoped services.
+ */
+export type ScopedServiceInfo<T = any, Args extends any[] = any[]> = {
+    readonly type: "scoped",
+    factory: ServiceFactory<T, Args>
 } & ({
     simple: false,
     deps: (() => any)[]
@@ -54,7 +68,7 @@ export type SingletonServiceInfo<T = any, Args extends any[] = any[]> = {
  */
 export type TransientServiceInfo<T = any, Args extends any[] = any[]> = {
     readonly type: "transient",
-    readonly service: ServiceFactory<T, Args>
+    factory: ServiceFactory<T, Args>
 } & ({
     simple: false,
     deps: (() => any)[]
@@ -68,7 +82,7 @@ export type TransientServiceInfo<T = any, Args extends any[] = any[]> = {
  */
 export type PrimitiveServiceInfo<T extends string | number | boolean | symbol | bigint | null | undefined = any> = {
     readonly type: "primitive",
-    readonly service: ServiceFactory<T, []>,
+    factory: ServiceFactory<T, []>,
     simple: true
 };
 
@@ -77,6 +91,7 @@ export type PrimitiveServiceInfo<T extends string | number | boolean | symbol | 
  */
 export type ServiceInfo<T = any, Args extends any[] = any[]> =
     | SingletonServiceInfo<T, Args>
+    | ScopedServiceInfo<T, Args>
     | TransientServiceInfo<T, Args>
     | (T extends string | number | boolean | symbol | bigint | null | undefined
             ? PrimitiveServiceInfo<T>
