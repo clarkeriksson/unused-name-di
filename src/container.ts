@@ -144,6 +144,7 @@ export class InjectionContainerImpl<
             }
         } 
     }
+
     transient<Key extends PropertyKey>(key: Key): {
         use<S>(lazy: () => ServiceProvider<S>)
             : InjectionContainer<
@@ -162,6 +163,7 @@ export class InjectionContainerImpl<
             }
         } 
     }
+
     primitive<Key extends PropertyKey>(key: Key): {
         use<S extends string | number | boolean | symbol | bigint | null | undefined>(value: S)
             : InjectionContainer<
@@ -180,6 +182,7 @@ export class InjectionContainerImpl<
             }
         } 
     }
+
     inject<P extends ServiceProvider>(provider: P): {
         <const Keys extends KeysForValues<Services, ServiceArgs<P>>>(...keys: Keys): void 
     } {
@@ -187,6 +190,7 @@ export class InjectionContainerImpl<
             this.implToDeps.set(provider, new Set(keys));
         }
     }
+    
     resolve<Key extends keyof Services>(key: Key): ServiceInstance<Services[Key]["service"]> {
         if (this.singletons.has(key)) {
             return this.singletons.get(key);
