@@ -1,4 +1,4 @@
-import type { PrimitiveServiceInfo, ScopedServiceInfo, ServiceArgs, ServiceFactory, ServiceInfo, ServiceInstance, ServiceProvider, SingletonServiceInfo, TransientServiceInfo } from "./service.js";
+import { ServiceInfoImpl, ServiceType, type ServiceArgs, type ServiceInfo, type ServiceInstance, type ServiceProvider } from "./service.js";
 
 /**
  * Utility type to simplify how built dict-like types render in IDE preview.
@@ -10,7 +10,7 @@ type Prettify<T> = {
 /**
  * Type returning the broad primitive type for primitive const type inputs, otherwise the type passes through.
  */
-type Generalize<T> = 
+type Broaden<T> = 
     T extends string ?
     string :
     T extends number ?
@@ -32,9 +32,26 @@ type Generalize<T> =
  */
 export type KeysForValues<T extends Record<PropertyKey, ServiceInfo>, Values extends readonly any[]> = {
     [Index in keyof Values]: {
-        [Key in keyof T]: Values[Index] extends Generalize<ServiceInstance<T[Key]["factory"]>> ? Key : never;
+        [Key in keyof T]: Values[Index] extends Broaden<ServiceInstance<T[Key]["factory"]>> ? Key : never;
     }[keyof T];
 };
+
+/**
+ * Object returned from registration methods to specify a service and optionally a type for that service.
+ */
+type RegistrationHandler<
+    Services extends Record<PropertyKey, ServiceInfo>,
+    Key extends PropertyKey, 
+    Kind extends ServiceType
+> = {
+    /**
+     * Registers the service provider and associated service given by the provided getter function. Returns an updated
+     * {@link InjectionContainer} to continue registration.
+     */
+    use<Service>(
+        lazy: () => ServiceProvider<Service>
+    ): InjectionContainer<Prettify<Services & { [K in Key]: ServiceInfo<Kind, Service> }>>;
+}
 
 /**
  * A dependency injection container. Multiple containers can exist.
@@ -43,81 +60,47 @@ export interface InjectionContainer<
     Services extends Record<PropertyKey, ServiceInfo> = {}
 > {
     /**
+     * **Singleton services resolve to the same instance globally.**
+     * 
      * Begins the registration of a singleton service assigned to the given key. This should always be followed by a
      * call to the 'use' method on the returned object, where a getter for the associated constructor or factory is
      * provided as an arg, and an optional generic type param can be provided to specify a broader type to register
      * the service as. 
      * 
-     * **Singletons are globally respected unique instances, including across different containers. Since this is the
-     * case, it is important to recognize that any non-singleton dependencies of this service will be derived from the
-     * container it is registered in. Because of this it is recommended to only have singleton dependencies, but not
-     * strictly prohibited by this library to allow for more freedom of use.**
+     * _WARNING: Since singleton services are the same across containers, it is important to recognize that any non-singleton 
+     * dependencies of this service will be derived from the container it is registered in. Because of this it is 
+     * recommended to only have singleton dependencies, but not strictly prohibited by this library._
      * 
      * @param key The key to assign the service to.
      * @returns An object containing the 'use' method to complete registration of the service.
      */
-    singleton<Key extends PropertyKey>(key: Key): {
-        use<S>(lazy: () => ServiceProvider<S>)
-            : InjectionContainer<
-                Prettify<Services & { [K in Key]: SingletonServiceInfo<S> }>
-            >;
-    };
+    singleton<Key extends PropertyKey>(key: Key): RegistrationHandler<Services, Key, "singleton">;
 
     /**
+     * **Scoped services resolve to the same instance within a container.**
+     * 
      * Begins the registration of a scoped service assigned to the given key. This should always be followed by a
      * call to the 'use' method on the returned object, where a getter for the associated constructor or factory is
      * provided as an arg, and an optional generic type param can be provided to specify a broader type to register
      * the service as. 
      * 
-     * **Scoped services behave as singletons for the container they inhabit.**
-     * 
      * @param key The key to assign the service to.
      * @returns An object containing the 'use' method to complete registration of the service.
      */
-    scoped<Key extends PropertyKey>(key: Key): {
-        use<S>(lazy: () => ServiceProvider<S>)
-            : InjectionContainer<
-                Prettify<Services & { [K in Key]: ScopedServiceInfo<S> }>
-            >;
-    };
+    scoped<Key extends PropertyKey>(key: Key): RegistrationHandler<Services, Key, "scoped">;
 
     /**
+     * **Transient services always resolve to a new instance.**
+     * 
      * Begins the registration of a transient service assigned to the given key. This should always be followed by a
      * call to the 'use' method on the returned object, where a getter for the associated constructor or factory is
      * provided as an arg, and an optional generic type param can be provided to specify a broader type to register
      * the service as.
      * 
-     * **Transient services are unique per resolve.**
-     * 
      * @param key The key to assign the service to.
      * @returns An object containing the 'use' method to complete registration of the service.
      */
-    transient<Key extends PropertyKey>(key: Key): {
-        use<S>(lazy: () => ServiceProvider<S>)
-            : InjectionContainer<
-                Prettify<Services & { [K in Key]: TransientServiceInfo<S> }>
-            >;
-    };
-
-    /**
-     * Begins the registration of a primitive service assigned to the given key. This should always be followed by a
-     * call to the 'use' method on the returned object, where a value will be provided for the primitive type.
-     * Functionally equivalent to a singleton or transient service registered with a primitive value getter, but it is
-     * advisable to register under this in those cases to be more descriptive and avoid ambiguity. It is likely
-     * advisable to not use primitive services anyways, but the option exists.
-     * 
-     * **Primitive services implicitly function as global singletons, but less care can be taken with usage of these
-     * due to their inherent lack of dependencies.**
-     * 
-     * @param key The key to assign the service to.
-     * @returns An object containing the 'use' method to complete registration of the service.
-     */
-    primitive<Key extends PropertyKey>(key: Key): {
-        use<S extends string | number | boolean | symbol | bigint | null | undefined>(value: S)
-            : InjectionContainer<
-                Prettify<Services & { [K in Key]: PrimitiveServiceInfo<S> }>
-            >;
-    }
+    transient<Key extends PropertyKey>(key: Key): RegistrationHandler<Services, Key, "transient">;
 
     /**
      * Takes in a service constructor or factory and returns a function to specify the services to inject as parameters
@@ -165,82 +148,32 @@ export interface InjectionContainer<
 export class InjectionContainerImpl<
     Services extends Record<PropertyKey, ServiceInfo> = {}
 > implements InjectionContainer<Services> {
-    private serviceInfo = {} as Services;
-    private lazyProviders: Map<PropertyKey, () => ServiceProvider> = new Map();
+    private serviceInfo: Record<PropertyKey, ServiceInfoImpl> = {};
     private implToDeps: Map<ServiceProvider, PropertyKey[]> = new Map();
     private resolverCache: Map<PropertyKey, () => any> = new Map();
 
-    singleton<Key extends PropertyKey>(key: Key): {
-        use<S>(lazy: () => ServiceProvider<S>)
-            : InjectionContainer<
-                Prettify<Services & { [K in Key]: SingletonServiceInfo<S> }>
-            >;
-    } {
+    singleton<Key extends PropertyKey>(key: Key): RegistrationHandler<Services, Key, "singleton"> {
         return {
-            use: <S>(lazy: () => ServiceProvider<S>): InjectionContainer<Prettify<Services & { [K in Key]: SingletonServiceInfo<S> }>> => {
-                this.lazyProviders.set(key, lazy);
-                (this.serviceInfo as Record<PropertyKey, ServiceInfo>)[key] = {
-                    type: "singleton",
-                    factory: null as any,
-                    simple: true
-                }
+            use: <S>(lazy: () => ServiceProvider<S>): InjectionContainer<Prettify<Services & { [K in Key]: ServiceInfo<"singleton", S> }>> => {
+                (this.serviceInfo as Record<PropertyKey, ServiceInfo>)[key] = new ServiceInfoImpl("singleton", lazy);
                 return this as any;
             }
         } 
     }
 
-    scoped<Key extends PropertyKey>(key: Key): {
-        use<S>(lazy: () => ServiceProvider<S>)
-            : InjectionContainer<
-                Prettify<Services & { [K in Key]: ScopedServiceInfo<S> }>
-            >;
-    } {
+    scoped<Key extends PropertyKey>(key: Key): RegistrationHandler<Services, Key, "scoped"> {
         return {
-            use: <S>(lazy: () => ServiceProvider<S>): InjectionContainer<Prettify<Services & { [K in Key]: ScopedServiceInfo<S> }>> => {
-                this.lazyProviders.set(key, lazy);
-                (this.serviceInfo as Record<PropertyKey, ServiceInfo>)[key] = {
-                    type: "scoped",
-                    factory: null as any,
-                    simple: true
-                }
+            use: <S>(lazy: () => ServiceProvider<S>): InjectionContainer<Prettify<Services & { [K in Key]: ServiceInfo<"scoped", S> }>> => {
+                (this.serviceInfo as Record<PropertyKey, ServiceInfo>)[key] = new ServiceInfoImpl("scoped", lazy);
                 return this as any;
             }
         } 
     }    
 
-    transient<Key extends PropertyKey>(key: Key): {
-        use<S>(lazy: () => ServiceProvider<S>)
-            : InjectionContainer<
-                Prettify<Services & { [K in Key]: TransientServiceInfo<S> }>
-            >;
-    } {
+    transient<Key extends PropertyKey>(key: Key): RegistrationHandler<Services, Key, "transient"> {
         return {
-            use: <S>(lazy: () => ServiceProvider<S>): InjectionContainer<Prettify<Services & { [K in Key]: TransientServiceInfo<S> }>> => {
-                this.lazyProviders.set(key, lazy);
-                (this.serviceInfo as Record<PropertyKey, ServiceInfo>)[key] = {
-                    type: "transient",
-                    factory: null as any,
-                    simple: true
-                }
-                return this as any;
-            }
-        } 
-    }
-
-    primitive<Key extends PropertyKey>(key: Key): {
-        use<S extends string | number | boolean | symbol | bigint | null | undefined>(value: S)
-            : InjectionContainer<
-                Prettify<Services & { [K in Key]: PrimitiveServiceInfo<S> }>
-            >;
-    } {
-        return {
-            use: <S extends string | number | boolean | symbol | bigint | null | undefined>(value: S): InjectionContainer<Prettify<Services & { [K in Key]: PrimitiveServiceInfo<S> }>> => {
-                this.lazyProviders.set(key, () => (() => value));
-                (this.serviceInfo as Record<PropertyKey, ServiceInfo>)[key] = {
-                    type: "primitive",
-                    factory: () => value,
-                    simple: true
-                }
+            use: <S>(lazy: () => ServiceProvider<S>): InjectionContainer<Prettify<Services & { [K in Key]: ServiceInfo<"transient", S> }>> => {
+                (this.serviceInfo as Record<PropertyKey, ServiceInfo>)[key] = new ServiceInfoImpl("transient", lazy);
                 return this as any;
             }
         } 
@@ -261,35 +194,25 @@ export class InjectionContainerImpl<
 
     child(): InjectionContainer<Services> {
         const result = new InjectionContainerImpl();
-        result.serviceInfo = {} as Services;
+        result.serviceInfo = {};
 
         const infoEntries = Object.entries(this.serviceInfo);
         for (const [k, v] of infoEntries) {
-            const curr = {
-                type: v.type,
-                factory: null as any,
-                simple: true
-            } as ServiceInfo;
-            if (v.type === "singleton") {
+            const curr = v._derive();
+            if (v.kind === "singleton") {
                 const resolver = this._ensureResolverCached(k);
-                curr.factory = v.factory;
-                (result as InjectionContainerImpl).resolverCache.set(k, resolver);
+                result.resolverCache.set(k, resolver);
             }
-            (result as any).serviceInfo[k] = curr;
-        }
-
-        const lazyProviderEntries = this.lazyProviders.entries();
-        for (const [k, v] of lazyProviderEntries) {
-            (result as InjectionContainerImpl).lazyProviders.set(k, v);
+            result.serviceInfo[k] = curr;
         }
 
         const depsEntries = this.implToDeps.entries();
         for (const [k, v] of depsEntries) {
             const curr = [...v];
-            (result as InjectionContainerImpl).implToDeps.set(k, curr);
+            result.implToDeps.set(k, curr);
         }
 
-        return result as any;
+        return result as InjectionContainer<Services>;
     }
 
     private _ensureResolverCached<Key extends keyof Services>(key: Key): () => ServiceInstance<Services[Key]["factory"]> {
@@ -299,20 +222,13 @@ export class InjectionContainerImpl<
         const info = this.serviceInfo[key];
         if (!info) throw new Error(`No service for key '${String(key)}' found`);
 
-        const lazy = this.lazyProviders.get(key);
-        if (!lazy) throw new Error(`No service provider getter for key '${String(key)}' found`);
-
-        (info as ServiceInfo).factory ??= InjectionContainerImpl.normalize(lazy());
-
-        const depKeys = this.implToDeps.get(info.factory) ?? [];
+        const depKeys = this.implToDeps.get(info.rawProvider) ?? [];
 
         let argResolvers = depKeys.map(depKey => this._ensureResolverCached(depKey));
 
-        info.simple = argResolvers.length === 0;
-
         const resolve = () => info.factory(...argResolvers.map(r => r()));
 
-        const resolver = (info.type === "singleton" || info.type === "scoped")
+        const resolver = (info.kind === "singleton" || info.kind === "scoped")
             ? (() => {
                 const instance = resolve();
                 return () => instance;
@@ -337,68 +253,17 @@ export class InjectionContainerImpl<
         }
     }
 
-    private static isClass(fn: unknown): fn is new (...args: any[]) => any {
-        return typeof fn === "function" && !!fn.prototype?.constructor;
-    }
-
-    private static normalize<Service>(provider: ServiceProvider<Service>): ServiceFactory<Service> {
-        if (InjectionContainerImpl.isClass(provider)) {
-            return (...args: any[]) => new provider(...args);
-        } else {
-            return provider;
-        }
-    }
-
     dispose(): void {
-        const _this = this as any;
+        this.serviceInfo = {};
+        this.implToDeps.clear();
+        this.resolverCache.clear();
 
-        let keys = Object.keys(_this.serviceInfo);
-        for (const key of keys) {
-            let curr = _this.serviceInfo[key];
-            curr.factory = null;
-            if (curr.deps) {
-                for (let i = 0; i < curr.deps.length; i++) {
-                    curr.deps[i] = null;
-                }
-                curr.deps.length = 0;
-            }
-            curr = null;
-            _this.serviceInfo[key] = null;
+        (this as any).resolve = () => {
+            throw new Error("Container has been disposed");
         }
-        _this.serviceInfo = null;
+    }
 
-        let lazyKeys = _this.lazyProviders.keys();
-        for (const key of lazyKeys) {
-            _this.lazyProviders.set(key, null);
-        }
-        _this.lazyProviders.clear();
-        _this.lazyProviders = null;
-
-        let depsKeys = _this.implToDeps.keys();
-        for (const key of depsKeys) {
-            let curr = _this.implToDeps.get(key);
-            if (curr) {
-                for (let i = 0; i < curr.length; i++) {
-                    curr[i] = null;
-                }
-            }
-            curr = null;
-            curr.set(key, null);
-        }
-        _this.implToDeps.clear();
-        _this.implToDeps = null;
-
-        let resolverKeys = _this.resolverCache.keys();
-        for (const key of resolverKeys) {
-            _this.resolverCache.set(key, null);
-        }
-        _this.resolverCache.clear();
-
-        /**
-            private serviceInfo = {} as Services;
-            private lazyProviders: Map<PropertyKey, () => ServiceProvider> = new Map();
-            private implToDeps: Map<ServiceProvider, PropertyKey[]> = new Map();
-            private resolverCache: Map<PropertyKey, () => any> = new Map();
-         */
+    [Symbol.dispose]() {
+        
     }
 }

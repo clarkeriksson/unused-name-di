@@ -1,19 +1,19 @@
 /**
  * Factory function returning a service.
  */
-export type ServiceFactory<Service = any, Args extends any[] = any[]> = (...args: Args) => Service;
+export type ServiceFactory<Service = any> = (...args: any[]) => Service;
 
 /**
  * Class constructor returning a service.
  */
-export type ServiceConstructor<Service = any, Args extends any[] = any[]> = new (...args: Args) => Service;
+export type ServiceConstructor<Service = any> = new (...args: any[]) => Service;
 
 /**
  * Factory or constructor returning a service.
  */
-export type ServiceProvider<Service = any, Args extends any[] = any[]> = 
-    | ServiceFactory<Service, Args>
-    | ServiceConstructor<Service, Args>;
+export type ServiceProvider<Service = any> = 
+    | ServiceFactory<Service>
+    | ServiceConstructor<Service>;
 
 /**
  * Object type returned from a {@link ServiceProvider}.
@@ -36,63 +36,59 @@ export type ServiceArgs<Provider extends ServiceProvider> =
             : never;
 
 /**
- * Metadata type for singleton services.
+ * Allowed service types.
  */
-export type SingletonServiceInfo<T = any, Args extends any[] = any[]> = {
-    readonly type: "singleton",
-    factory: ServiceFactory<T, Args>
-} & ({
-    simple: false,
-    deps: (() => any)[]
-} | {
-    simple: true,
-    deps?: (() => any)[]
-});
+const SERVICE_TYPES = ["singleton", "scoped", "transient"] as const;
 
 /**
- * Metadata type for scoped services.
+ * Union type of allowed service type strings.
  */
-export type ScopedServiceInfo<T = any, Args extends any[] = any[]> = {
-    readonly type: "scoped",
-    factory: ServiceFactory<T, Args>
-} & ({
-    simple: false,
-    deps: (() => any)[]
-} | {
-    simple: true,
-    deps?: (() => any)[]
-});
+export type ServiceType = (typeof SERVICE_TYPES)[number];
 
 /**
- * Metadata type for transient services.
+ * Object type containing the service type and factory for some service key.
  */
-export type TransientServiceInfo<T = any, Args extends any[] = any[]> = {
-    readonly type: "transient",
-    factory: ServiceFactory<T, Args>
-} & ({
-    simple: false,
-    deps: (() => any)[]
-} | {
-    simple: true,
-    deps?: (() => any)[]
-});
+export interface ServiceInfo<Kind extends ServiceType = ServiceType, T = any> {
+    readonly kind: Kind;
+    get factory(): ServiceFactory<T>;
+}
 
-/**
- * Metadata type for primitive value services.
- */
-export type PrimitiveServiceInfo<T extends string | number | boolean | symbol | bigint | null | undefined = any> = {
-    readonly type: "primitive",
-    factory: ServiceFactory<T, []>,
-    simple: true
-};
+export class ServiceInfoImpl<Kind extends ServiceType = ServiceType, Service = any> implements ServiceInfo<Kind, Service> {
+    readonly kind: Kind;
+    readonly lazy: () => ServiceProvider<Service>;
+    private _factory: ServiceFactory<Service> | null = null;
+    get factory(): ServiceFactory<Service> {
+        return (this._factory ??= ServiceInfoImpl.normalize(this.lazy()));
+    }
 
-/**
- * Metadata type for services.
- */
-export type ServiceInfo<T = any, Args extends any[] = any[]> =
-    | SingletonServiceInfo<T, Args>
-    | ScopedServiceInfo<T, Args>
-    | TransientServiceInfo<T, Args>
-    | (T extends string | number | boolean | symbol | bigint | null | undefined
-            ? PrimitiveServiceInfo<T>
-            : never);
+    get rawProvider(): ServiceProvider<Service> {
+        return (this.lazy());
+    }
+
+    constructor(kind: Kind, lazy: () => ServiceProvider<Service>) {
+        this.kind = kind;
+        this.lazy = lazy;
+    }
+
+    /**
+     * Creates a copy of this service prepared to be part of a new container.
+     */
+    _derive(): ServiceInfoImpl<Kind, Service> {
+        if (this.kind === "singleton") {
+            return this;
+        }
+        return new ServiceInfoImpl(this.kind, this.lazy);
+    }
+
+    private static isClass(fn: unknown): fn is new (...args: any[]) => any {
+        return typeof fn === "function" && !!fn.prototype?.constructor;
+    }
+
+    private static normalize<Service>(provider: ServiceProvider<Service>): ServiceFactory<Service> {
+        if (ServiceInfoImpl.isClass(provider)) {
+            return (...args: any[]) => new provider(...args);
+        } else {
+            return provider;
+        }
+    }
+}

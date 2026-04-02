@@ -14,12 +14,12 @@ import { UnusedName } from "unused-name";
  *  - (Optional) Interface to register service under
  */
 export const di = UnusedName.builder()
-    .primitive("AppName").use("SomeAppName")
+    .singleton("AppName").use(() => (() => "SomeAppName"))
     .singleton("AppConfig").use(() => AppConfig)
     .transient("FileService").use(() => FileService)
-    .primitive("PixelWidth").use(16)
+    .singleton("PixelWidth").use(() => (() => 16))
     .transient("ChatService").use<ChatService>(() => ChatServiceImpl)
-    .singleton("ImageService").use<ImageService>(() => ImageService)
+    .scoped("ImageService").use<ImageService>(() => ImageService)
     .singleton("VideoService").use<VideoService>(() => VideoServiceFactory)
     .transient("EmailService").use<EmailService>(() => EmailServiceGetter);
 ```
@@ -123,44 +123,41 @@ const pixel: number = DI.resolve("PixelWidth");
 const name: string = DI.resolve("AppName");
 ```
 
-Singleton services will always be the same reference.
+## Service Types
+
+### Singleton
+
+Singleton services will always be the same reference, even across containers.
 
 ```typescript
+const child = DI.child(); // child container
+
 const config0 = DI.resolve("AppConfig");
-const config1 = DI.resolve("AppConfig");
-console.log(config0 === config1);
-// true
+const config1 = child.resolve("AppConfig");
+console.log(config0 === config1); // true
 ```
+
+### Scoped
+
+Scoped services will be the same reference within a container, but different references across different containers.
+
+```typescript
+const child = DI.child(); // child container
+
+const rootImage0 = DI.resolve("ImageService");
+const rootImage1 = DI.resolve("ImageService");
+console.log(rootImage0 === rootImage1); // true
+
+const childImage = child.resolve("ImageService");
+console.log(rootImage0 === childImage); // false
+```
+
+### Transient
 
 Transient services will always be different references.
 
 ```typescript
 const email0 = DI.resolve("EmailService");
 const email1 = DI.resolve("EmailService");
-console.log(email0 === email1);
-// false
-```
-
-Primitive services are returned by value, and therefore readonly. The primitive service option is just a nicer way to
-do what is functionally equivalent to registering a primitive getter to a singleton or transient service.
-
-To avoid needing to specify the exact value as a const type at the service provider, primitive services are broadened
-to their parent primitive type for the purposes of injection. They are still registered as const types.
-
-```typescript
-// WORKS
-class PrimitiveExample1 {
-    static { di.inject(this)("PixelWidth", "AppName") }
-    constructor(pixelWidth: 16, appName: "SomeAppName") {
-        ...
-    }
-}
-
-// ALSO WORKS, PREFERABLE
-class PrimitiveExample2 {
-    static { di.inject(this)("PixelWidth", "AppName"); }
-    constructor(pixelWidth: number, appName: string) {
-        ...
-    }
-}
+console.log(email0 === email1); // false
 ```

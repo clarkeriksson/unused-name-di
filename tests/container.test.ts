@@ -2,7 +2,7 @@
 import { test, expect } from "vitest";
 
 import { DI } from "./container";
-import { ChatServiceImpl, FileServiceImpl, GlobalConfig, ImageServiceImpl } from "./setup";
+import { ChatServiceImpl, DateServiceImpl, FileServiceImpl, GlobalConfig, ImageServiceImpl, VideoServiceImpl } from "./setup";
 
 test("container is initialized", () => {
     expect(DI).toBeDefined();
@@ -10,38 +10,47 @@ test("container is initialized", () => {
 
 test("can resolve transient service correctly", () => {
     const fileService = DI.resolve("FileService0");
-    expect(fileService).toBeDefined();
     expect(fileService).toBeInstanceOf(FileServiceImpl);
+
+    const date = fileService.date;
+    const image = fileService.image;
+    const video = fileService.video;
+
+    expect(date).toBeInstanceOf(DateServiceImpl);
+
+    expect(image).toBeInstanceOf(ImageServiceImpl);
+
+    expect(video).toBeInstanceOf(VideoServiceImpl);
+
+    const fileServiceAgain = DI.resolve("FileService0");
+    expect(fileServiceAgain).toBeInstanceOf(FileServiceImpl);
 });
 
 test("can resolve scoped service correctly", () => {
     const imageService = DI.resolve("ImageService");
-    expect(imageService).toBeDefined();
     expect(imageService).toBeInstanceOf(ImageServiceImpl);
 
+    const px = imageService.pxWidth;
+    const video = imageService.video;
+
+    expect(px).toBeTypeOf("number");
+
+    expect(video).toBeInstanceOf(VideoServiceImpl);
+
     const imageServiceAgain = DI.resolve("ImageService");
-    expect(imageServiceAgain).toBeDefined();
     expect(imageServiceAgain).toBeInstanceOf(ImageServiceImpl);
 });
 
 test("can resolve singleton service correctly", () => {
-    const appConfig = DI.resolve("GlobalConfig");
-    expect(appConfig).toBeDefined();
-    expect(appConfig).toBeInstanceOf(GlobalConfig);
+    const video = DI.resolve("VideoService");
+    expect(video).toBeInstanceOf(VideoServiceImpl);
 
-    const appConfigAgain = DI.resolve("GlobalConfig");
-    expect(appConfigAgain).toBeDefined();
-    expect(appConfigAgain).toBeInstanceOf(GlobalConfig);
-});
+    const date = video.date;
 
-test ("can resolve primitive service correctly", () => {
-    const pixelWidth = DI.resolve("PixelWidth");
-    expect(pixelWidth).toBeDefined();
-    expect(pixelWidth).toBeTypeOf("number");
+    expect(date).toBeInstanceOf(DateServiceImpl);
 
-    const pixelWidthAgain = DI.resolve("PixelWidth");
-    expect(pixelWidthAgain).toBeDefined();
-    expect(pixelWidthAgain).toBeTypeOf("number");
+    const videoAgain = DI.resolve("VideoService");
+    expect(videoAgain).toBeInstanceOf(VideoServiceImpl);
 });
 
 test("transient services are distinct instances", () => {
@@ -91,7 +100,7 @@ test("child initializes properly", () => {
     const sym = Symbol();
 
     const newScope = DI.child()
-        .primitive("TestPrimitive").use(sym);
+        .singleton("TestPrimitive").use(() => () => sym);
 
     const resolvedSym = newScope.resolve("TestPrimitive");
     expect(resolvedSym).toBeDefined();
@@ -120,4 +129,4 @@ test("scoped services are different across containers", () => {
 
     expect(anotherRootImage).toBe(rootImage);
     expect(anotherChildImage).toBe(childImage);
-})
+});
