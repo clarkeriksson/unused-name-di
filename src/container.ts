@@ -148,11 +148,14 @@ export interface InjectionContainer<
 export class InjectionContainerImpl<
     Services extends Record<PropertyKey, ServiceInfo> = {}
 > implements InjectionContainer<Services> {
+    #disposed: boolean = false;
+
     private serviceInfo: Record<PropertyKey, ServiceInfoImpl> = {};
     private implToDeps: Map<ServiceProvider, PropertyKey[]> = new Map();
     private resolverCache: Map<PropertyKey, () => any> = new Map();
 
     singleton<Key extends PropertyKey>(key: Key): RegistrationHandler<Services, Key, "singleton"> {
+        this.assertNotDisposed();
         return {
             use: <S>(lazy: () => ServiceProvider<S>): InjectionContainer<Prettify<Services & { [K in Key]: ServiceInfo<"singleton", S> }>> => {
                 (this.serviceInfo as Record<PropertyKey, ServiceInfo>)[key] = new ServiceInfoImpl("singleton", lazy);
@@ -162,6 +165,7 @@ export class InjectionContainerImpl<
     }
 
     scoped<Key extends PropertyKey>(key: Key): RegistrationHandler<Services, Key, "scoped"> {
+        this.assertNotDisposed();
         return {
             use: <S>(lazy: () => ServiceProvider<S>): InjectionContainer<Prettify<Services & { [K in Key]: ServiceInfo<"scoped", S> }>> => {
                 (this.serviceInfo as Record<PropertyKey, ServiceInfo>)[key] = new ServiceInfoImpl("scoped", lazy);
@@ -171,6 +175,7 @@ export class InjectionContainerImpl<
     }    
 
     transient<Key extends PropertyKey>(key: Key): RegistrationHandler<Services, Key, "transient"> {
+        this.assertNotDisposed();
         return {
             use: <S>(lazy: () => ServiceProvider<S>): InjectionContainer<Prettify<Services & { [K in Key]: ServiceInfo<"transient", S> }>> => {
                 (this.serviceInfo as Record<PropertyKey, ServiceInfo>)[key] = new ServiceInfoImpl("transient", lazy);
@@ -182,17 +187,21 @@ export class InjectionContainerImpl<
     inject<P extends ServiceProvider>(provider: P): {
         <const Keys extends KeysForValues<Services, ServiceArgs<P>>>(...keys: Keys): void 
     } {
+        this.assertNotDisposed();
         return (...keys) => {
             this.implToDeps.set(provider, keys);
         }
     }
     
     resolve<Key extends keyof Services>(key: Key): ServiceInstance<Services[Key]["factory"]> {
+        this.assertNotDisposed();
         const resolver = this._ensureResolverCached(key);
         return resolver();
     }
 
     child(): InjectionContainer<Services> {
+        this.assertNotDisposed();
+
         const result = new InjectionContainerImpl();
         result.serviceInfo = {};
 
@@ -240,30 +249,34 @@ export class InjectionContainerImpl<
     }
 
     readonly dec: {
-        inject<const Keys extends KeysForValues<Services, ServiceArgs<P>>, P extends ServiceProvider>(
+        inject<const Keys extends KeysForValues<Services, ServiceArgs<P>>, const P extends ServiceProvider>(
             ...keys: Keys
         ): (provider: P) => void;
     } = {
         inject: <const Keys extends KeysForValues<Services, ServiceArgs<P>>, const P extends ServiceProvider>(
             ...keys: Keys
         ): (provider: P) => void => {
+            this.assertNotDisposed();
             return (provider) => {
                 this.implToDeps.set(provider, keys);
             }
         }
     }
 
+    private assertNotDisposed() {
+        if (this.#disposed) throw new Error("Container has been disposed");
+    }
+
     dispose(): void {
+        if (this.#disposed) return;
+        this.#disposed = true;
+
         this.serviceInfo = {};
         this.implToDeps.clear();
         this.resolverCache.clear();
-
-        (this as any).resolve = () => {
-            throw new Error("Container has been disposed");
-        }
     }
 
     [Symbol.dispose]() {
-        
+        this.dispose();
     }
 }
