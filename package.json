@@ -1,6 +1,6 @@
 {
   "name": "unused-name",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Small dependency injection implementation",
   "license": "MIT",
   "author": "Clark Eriksson",
