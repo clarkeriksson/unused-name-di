@@ -166,6 +166,9 @@ test("singleton services created in child containers cannot be overriden further
     const image = child.resolve("ImageService");
     const imageAgain = child.resolve("ImageService");
 
+    expect(image.pxWidth).toBeTypeOf("number");
+    expect(image.video).toBeInstanceOf(VideoServiceImpl);
+
     expect(image).toBe(imageAgain);
 
     // @ts-expect-error
