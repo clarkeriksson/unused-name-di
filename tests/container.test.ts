@@ -2,7 +2,15 @@
 import { test, expect } from "vitest";
 
 import { DI } from "./container";
-import { ChatServiceImpl, DateServiceImpl, FileServiceImpl, GlobalConfig, ImageServiceImpl, VideoServiceImpl } from "./setup";
+import {
+    ChatServiceImpl,
+    DateServiceImpl,
+    FileServiceImpl,
+    GlobalConfig,
+    ImageServiceImpl,
+    ImageServiceNewImpl,
+    VideoServiceImpl,
+} from "./setup";
 
 test("container is initialized", () => {
     expect(DI).toBeDefined();
@@ -56,7 +64,7 @@ test("can resolve singleton service correctly", () => {
 test("transient services are distinct instances", () => {
     const fileService0 = DI.resolve("FileService0");
     const fileService1 = DI.resolve("FileService0");
-    
+
     expect(fileService0).not.toBe(fileService1);
 });
 
@@ -83,7 +91,7 @@ test("services injected in static blocks work", () => {
 test("services registered by implementation alone work", () => {
     const configService = DI.resolve("GlobalConfig");
     expect(configService).toBeDefined();
-    expect(configService).toBeInstanceOf(GlobalConfig)
+    expect(configService).toBeInstanceOf(GlobalConfig);
 });
 
 test("value services work", () => {
@@ -100,7 +108,9 @@ test("child initializes properly", () => {
     const sym = Symbol();
 
     const newScope = DI.child()
-        .singleton("TestPrimitive").use(() => () => sym);
+        .singleton("TestPrimitive")
+        .use(() => () => sym)
+        .build();
 
     const resolvedSym = newScope.resolve("TestPrimitive");
     expect(resolvedSym).toBeDefined();
@@ -108,7 +118,7 @@ test("child initializes properly", () => {
 });
 
 test("singleton services are identical across containers", () => {
-    const child = DI.child();
+    const child = DI.child().build();
 
     const rootFileService = DI.resolve("GlobalConfig");
     const scopedFileService = child.resolve("GlobalConfig");
@@ -117,16 +127,60 @@ test("singleton services are identical across containers", () => {
 });
 
 test("scoped services are different across containers", () => {
-    const child = DI.child();
+    const child = DI.child().build();
 
     const rootImage = DI.resolve("ImageService");
     const childImage = child.resolve("ImageService");
 
     expect(rootImage).not.toBe(childImage);
-    
+
     const anotherRootImage = DI.resolve("ImageService");
     const anotherChildImage = child.resolve("ImageService");
 
     expect(anotherRootImage).toBe(rootImage);
     expect(anotherChildImage).toBe(childImage);
+});
+
+test("non-singleton services can be overriden", () => {
+    const child = DI.child()
+        .transient("ImageService")
+        .use(() => ImageServiceNewImpl)
+        .build();
+
+    const image = child.resolve("ImageService");
+
+    expect(image).toBeInstanceOf(ImageServiceNewImpl);
+});
+
+test("singleton services cannot be overriden", () => {
+    // @ts-expect-error
+    expect(() => DI.child().scoped("AppId")).toThrow();
+});
+
+test("singleton services created in child containers cannot be overriden further down the hierarchy", () => {
+    const child = DI.child()
+        .singleton("ImageService")
+        .use(() => ImageServiceNewImpl)
+        .build();
+
+    const image = child.resolve("ImageService");
+    const imageAgain = child.resolve("ImageService");
+
+    expect(image).toBe(imageAgain);
+
+    // @ts-expect-error
+    expect(() => child.child().scoped("ImageService")).toThrow();
+
+    const otherChild = DI.child()
+        .transient("ImageService")
+        .use(() => ImageServiceNewImpl)
+        .build();
+
+    const otherImage = otherChild.resolve("ImageService");
+    const otherImageAgain = otherChild.resolve("ImageService");
+
+    expect(image).not.toBe(otherImage);
+    expect(otherImage).not.toBe(otherImageAgain);
+
+    expect(() => otherChild.child().scoped("ImageService")).not.toThrow();
 });

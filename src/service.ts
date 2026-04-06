@@ -11,7 +11,7 @@ export type ServiceConstructor<Service = any> = new (...args: any[]) => Service;
 /**
  * Factory or constructor returning a service.
  */
-export type ServiceProvider<Service = any> = 
+export type ServiceProvider<Service = any> =
     | ServiceFactory<Service>
     | ServiceConstructor<Service>;
 
@@ -19,21 +19,21 @@ export type ServiceProvider<Service = any> =
  * Object type returned from a {@link ServiceProvider}.
  */
 export type ServiceInstance<Provider extends ServiceProvider> =
-    Provider extends (new (...args: any[]) => infer ClassInstance)
+    Provider extends new (...args: any[]) => infer ClassInstance
         ? ClassInstance
-        : Provider extends ((...args: any[]) => infer FactoryInstance)
-            ? FactoryInstance
-            : never;
+        : Provider extends (...args: any[]) => infer FactoryInstance
+          ? FactoryInstance
+          : never;
 
 /**
  * Tuple of argument types used in a {@link ServiceProvider}.
  */
 export type ServiceArgs<Provider extends ServiceProvider> =
-    Provider extends (new (...args: infer ClassArgs) => any)
+    Provider extends new (...args: infer ClassArgs) => any
         ? ClassArgs
-        : Provider extends ((...args: infer FactoryArgs) => any)
-            ? FactoryArgs
-            : never;
+        : Provider extends (...args: infer FactoryArgs) => any
+          ? FactoryArgs
+          : never;
 
 /**
  * Allowed service types.
@@ -53,7 +53,10 @@ export interface ServiceInfo<Kind extends ServiceType = ServiceType, T = any> {
     get factory(): ServiceFactory<T>;
 }
 
-export class ServiceInfoImpl<Kind extends ServiceType = ServiceType, Service = any> implements ServiceInfo<Kind, Service> {
+export class ServiceInfoImpl<
+    Kind extends ServiceType = ServiceType,
+    Service = any,
+> implements ServiceInfo<Kind, Service> {
     readonly kind: Kind;
     readonly lazy: () => ServiceProvider<Service>;
     private _factory: ServiceFactory<Service> | null = null;
@@ -62,7 +65,7 @@ export class ServiceInfoImpl<Kind extends ServiceType = ServiceType, Service = a
     }
 
     get rawProvider(): ServiceProvider<Service> {
-        return (this.lazy());
+        return this.lazy();
     }
 
     constructor(kind: Kind, lazy: () => ServiceProvider<Service>) {
@@ -84,7 +87,9 @@ export class ServiceInfoImpl<Kind extends ServiceType = ServiceType, Service = a
         return typeof fn === "function" && !!fn.prototype?.constructor;
     }
 
-    private static normalize<Service>(provider: ServiceProvider<Service>): ServiceFactory<Service> {
+    private static normalize<Service>(
+        provider: ServiceProvider<Service>,
+    ): ServiceFactory<Service> {
         if (ServiceInfoImpl.isClass(provider)) {
             return (...args: any[]) => new provider(...args);
         } else {

@@ -1,9 +1,19 @@
 {
   "name": "unused-name",
   "version": "0.0.4",
-  "description": "Small dependency injection implementation",
+  "description": "Small dependency injection implementation with 0 runtime npm dependencies",
   "license": "MIT",
   "author": "Clark Eriksson",
+  "keywords": [
+    "dependency injection", 
+    "dependency", 
+    "injection", 
+    "di", 
+    "ioc", 
+    "container", 
+    "javascript", 
+    "typescript"
+  ],
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

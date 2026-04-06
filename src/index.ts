@@ -1,14 +1,16 @@
-import { InjectionContainer, InjectionContainerImpl } from "./container.js";
+import {
+    InjectionContainer,
+    InjectionContainerBuilder,
+    InjectionContainerBuilderImpl,
+    InjectionContainerImpl,
+} from "./container.js";
 
-function builder(): InjectionContainer {
-    return new InjectionContainerImpl();
+function builder(): InjectionContainerBuilder {
+    return new InjectionContainerBuilderImpl();
 }
 
 const UnusedName = {
-    builder
+    builder,
 } as const;
 
-export { 
-    UnusedName, 
-    type InjectionContainer
-};
+export { UnusedName, type InjectionContainer };
