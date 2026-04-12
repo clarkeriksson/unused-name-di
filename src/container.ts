@@ -1,6 +1,8 @@
+import { ContainerDisposedError } from "./errors.js";
 import {
+    RAW_PROVIDER,
     ServiceInfoImpl,
-    ServiceType,
+    ServiceScope,
     type ServiceArgs,
     type ServiceInfo,
     type ServiceInstance,
@@ -8,7 +10,7 @@ import {
 } from "./service.js";
 
 /**
- * Utility type to simplify how built dict-like types render in IDE preview.
+ * Utility type to simplify and expand certain object type previews.
  */
 type Prettify<T> = { [K in keyof T]: T[K] } & {};
 
@@ -44,25 +46,25 @@ export type KeysForValues<
 };
 
 /**
- * Returns a tuple type of all keys in the given services record type that match the given service kind.
+ * Returns a tuple type of all keys in the given services record type that match the given service scope.
  */
-type ServiceKindKeys<
+type ServiceScopeKeys<
     Services extends Record<PropertyKey, ServiceInfo>,
-    Kind extends ServiceType,
+    Scope extends ServiceScope,
 > = {
-    [Key in keyof Services]: Services[Key] extends ServiceInfo<Kind>
+    [Key in keyof Services]: Services[Key] extends ServiceInfo<Scope>
         ? Key
         : never;
 }[keyof Services];
 
 /**
- * Returns never if the provided key is already associated with a service info type with kind 'singleton', otherwise
+ * Returns never if the provided key is already associated with a service info type with scope 'singleton', otherwise
  * returns the key.
  */
 type KeyIfNotExistingSingletonKey<
     Services extends Record<PropertyKey, ServiceInfo>,
     Key extends PropertyKey,
-> = Key extends ServiceKindKeys<Services, "singleton"> ? never : Key;
+> = Key extends ServiceScopeKeys<Services, "singleton"> ? never : Key;
 
 /**
  * Object returned from registration methods to specify a service and optionally a type for that service.
@@ -70,7 +72,7 @@ type KeyIfNotExistingSingletonKey<
 type RegistrationHandler<
     Services extends Record<PropertyKey, ServiceInfo>,
     Key extends PropertyKey,
-    Kind extends ServiceType,
+    Scope extends ServiceScope,
 > = {
     /**
      * Registers the service provider and associated service given by the provided getter function. Returns an updated
@@ -89,7 +91,7 @@ type RegistrationHandler<
         Prettify<
             Omit<Services, Key> & {
                 [K in Key]: ServiceInfo<
-                    Kind,
+                    Scope,
                     Key extends keyof Services
                         ? ServiceInstance<Services[Key]["factory"]>
                         : Service
@@ -221,13 +223,13 @@ export class InjectionContainerBuilderImpl<
     _implToDeps: Map<ServiceProvider, PropertyKey[]> = new Map();
     _resolverCache: Map<PropertyKey, () => any> = new Map();
 
-    private _register<Key extends PropertyKey, Kind extends ServiceType>(
+    private _register<Key extends PropertyKey, Scope extends ServiceScope>(
         key: KeyIfNotExistingSingletonKey<Services, Key>,
-        kind: Kind,
-    ): RegistrationHandler<Services, Key, Kind> {
+        scope: Scope,
+    ): RegistrationHandler<Services, Key, Scope> {
         if (
             key in this._serviceInfo &&
-            this._serviceInfo[key].kind === "singleton"
+            this._serviceInfo[key].scope === "singleton"
         )
             throw Error(
                 `Attempted to override the singleton service ${String(key)}`,
@@ -238,7 +240,7 @@ export class InjectionContainerBuilderImpl<
             ): InjectionContainerBuilder<
                 Prettify<
                     Omit<Services, Key> & {
-                        [K in Key]: ServiceInfo<Kind, Service>;
+                        [K in Key]: ServiceInfo<Scope, Service>;
                     }
                 >
             > => {
@@ -247,7 +249,7 @@ export class InjectionContainerBuilderImpl<
                     ServiceInfo
                 >;
                 if (key in this._serviceInfo) this._resolverCache.delete(key);
-                _info[key] = new ServiceInfoImpl(kind, lazy);
+                _info[key] = new ServiceInfoImpl(scope, lazy);
                 return this as any;
             },
         };
@@ -296,7 +298,7 @@ export class InjectionContainerImpl<
             ...keys: Keys
         ): void;
     } {
-        this.assertNotDisposed();
+        if (this.#disposed) throw new ContainerDisposedError("Attempted to inject from a disposed container");
         return (...keys) => {
             this._implToDeps.set(provider, keys);
         };
@@ -305,13 +307,13 @@ export class InjectionContainerImpl<
     resolve<Key extends keyof Services>(
         key: Key,
     ): ServiceInstance<Services[Key]["factory"]> {
-        this.assertNotDisposed();
+        if (this.#disposed) throw new ContainerDisposedError("Attempted to resolve from a disposed container");
         const resolver = this._ensureResolverCached(key);
         return resolver();
     }
 
     child(): InjectionContainerBuilder<Services> {
-        this.assertNotDisposed();
+        if (this.#disposed) throw new ContainerDisposedError("Attempted to create a child from a disposed container");
 
         const result = new InjectionContainerBuilderImpl();
         result._serviceInfo = {};
@@ -319,7 +321,7 @@ export class InjectionContainerImpl<
         const infoEntries = Object.entries(this._serviceInfo);
         for (const [k, v] of infoEntries) {
             const curr = v._derive();
-            if (v.kind === "singleton") {
+            if (v.scope === "singleton") {
                 const resolver = this._ensureResolverCached(k);
                 result._resolverCache.set(k, resolver);
             }
@@ -344,7 +346,7 @@ export class InjectionContainerImpl<
         const info = this._serviceInfo[key];
         if (!info) throw new Error(`No service for key '${String(key)}' found`);
 
-        const depKeys = this._implToDeps.get(info.rawProvider) ?? [];
+        const depKeys = this._implToDeps.get(info[RAW_PROVIDER]) ?? [];
 
         let argResolvers = depKeys.map((depKey) =>
             this._ensureResolverCached(depKey),
@@ -354,7 +356,7 @@ export class InjectionContainerImpl<
         const resolve = () => info.factory(...resolveArgs());
 
         const resolver =
-            info.kind === "singleton" || info.kind === "scoped"
+            info.scope === "singleton" || info.scope === "scoped"
                 ? (() => {
                       const instance = resolve();
                       return () => instance;
@@ -379,16 +381,12 @@ export class InjectionContainerImpl<
         >(
             ...keys: Keys
         ): ((provider: P) => void) => {
-            this.assertNotDisposed();
+            if (this.#disposed) throw new ContainerDisposedError("Attempted to inject from a disposed container");
             return (provider) => {
                 this._implToDeps.set(provider, keys);
             };
         },
     };
-
-    private assertNotDisposed() {
-        if (this.#disposed) throw new Error("Container has been disposed");
-    }
 
     dispose(): void {
         if (this.#disposed) return;

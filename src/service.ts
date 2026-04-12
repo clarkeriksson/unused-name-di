@@ -1,19 +1,19 @@
 /**
  * Factory function returning a service.
  */
-export type ServiceFactory<Service = any> = (...args: any[]) => Service;
+export type ServiceFactory<Service = any, Args extends any[] = any[]> = (...args: Args) => Service;
 
 /**
  * Class constructor returning a service.
  */
-export type ServiceConstructor<Service = any> = new (...args: any[]) => Service;
+export type ServiceConstructor<Service = any, Args extends any[] = any[]> = new (...args: Args) => Service;
 
 /**
  * Factory or constructor returning a service.
  */
-export type ServiceProvider<Service = any> =
-    | ServiceFactory<Service>
-    | ServiceConstructor<Service>;
+export type ServiceProvider<Service = any, Args extends any[] = any[]> =
+    | ServiceFactory<Service, Args>
+    | ServiceConstructor<Service, Args>;
 
 /**
  * Object type returned from a {@link ServiceProvider}.
@@ -36,51 +36,53 @@ export type ServiceArgs<Provider extends ServiceProvider> =
           : never;
 
 /**
- * Allowed service types.
+ * Allowed service scopes.
  */
-const SERVICE_TYPES = ["singleton", "scoped", "transient"] as const;
+const SERVICE_SCOPES = ["singleton", "scoped", "transient"] as const;
 
 /**
- * Union type of allowed service type strings.
+ * Union type of allowed service scope strings.
  */
-export type ServiceType = (typeof SERVICE_TYPES)[number];
+export type ServiceScope = (typeof SERVICE_SCOPES)[number];
 
 /**
- * Object type containing the service type and factory for some service key.
+ * Object type containing the service scope and factory for some service key.
  */
-export interface ServiceInfo<Kind extends ServiceType = ServiceType, T = any> {
-    readonly kind: Kind;
+export interface ServiceInfo<Scope extends ServiceScope = ServiceScope, T = any> {
+    readonly scope: Scope;
     get factory(): ServiceFactory<T>;
 }
 
+export const RAW_PROVIDER = Symbol("rawProvider");
+
 export class ServiceInfoImpl<
-    Kind extends ServiceType = ServiceType,
+    Scope extends ServiceScope = ServiceScope,
     Service = any,
-> implements ServiceInfo<Kind, Service> {
-    readonly kind: Kind;
+> implements ServiceInfo<Scope, Service> {
+    readonly scope: Scope;
     readonly lazy: () => ServiceProvider<Service>;
     private _factory: ServiceFactory<Service> | null = null;
     get factory(): ServiceFactory<Service> {
         return (this._factory ??= ServiceInfoImpl.normalize(this.lazy()));
     }
 
-    get rawProvider(): ServiceProvider<Service> {
+    get [RAW_PROVIDER](): ServiceProvider<Service> {
         return this.lazy();
     }
 
-    constructor(kind: Kind, lazy: () => ServiceProvider<Service>) {
-        this.kind = kind;
+    constructor(scope: Scope, lazy: () => ServiceProvider<Service>) {
+        this.scope = scope;
         this.lazy = lazy;
     }
 
     /**
      * Creates a copy of this service prepared to be part of a new container.
      */
-    _derive(): ServiceInfoImpl<Kind, Service> {
-        if (this.kind === "singleton") {
+    _derive(): ServiceInfoImpl<Scope, Service> {
+        if (this.scope === "singleton") {
             return this;
         }
-        return new ServiceInfoImpl(this.kind, this.lazy);
+        return new ServiceInfoImpl(this.scope, this.lazy);
     }
 
     private static isClass(fn: unknown): fn is new (...args: any[]) => any {
