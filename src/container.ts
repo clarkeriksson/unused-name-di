@@ -291,7 +291,7 @@ export class InjectionContainerImpl<
     _implToDeps: Map<ServiceProvider, PropertyKey[]> = new Map();
     _resolverCache: Map<PropertyKey, () => any> = new Map();
 
-    inject<P extends ServiceProvider>(
+    inject<P extends ServiceProvider, const Keys extends KeysForValues<Services, ServiceArgs<P>>>(
         provider: P,
     ): {
         <const Keys extends KeysForValues<Services, ServiceArgs<P>>>(
