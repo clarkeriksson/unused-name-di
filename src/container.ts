@@ -37,9 +37,9 @@ export type KeysForValues<
     Values extends readonly any[],
 > = {
     [Index in keyof Values]: {
-        [Key in keyof T]: Values[Index] extends Broaden<
+        [Key in keyof T]: Broaden<
             ServiceInstance<T[Key]["factory"]>
-        >
+        > extends Values[Index]
             ? Key
             : never;
     }[keyof T];
@@ -291,14 +291,17 @@ export class InjectionContainerImpl<
     _implToDeps: Map<ServiceProvider, PropertyKey[]> = new Map();
     _resolverCache: Map<PropertyKey, () => any> = new Map();
 
-    inject<P extends ServiceProvider, const Keys extends KeysForValues<Services, ServiceArgs<P>>>(
+    inject<P extends ServiceProvider>(
         provider: P,
     ): {
         <const Keys extends KeysForValues<Services, ServiceArgs<P>>>(
             ...keys: Keys
         ): void;
     } {
-        if (this.#disposed) throw new ContainerDisposedError("Attempted to inject from a disposed container");
+        if (this.#disposed)
+            throw new ContainerDisposedError(
+                "Attempted to inject from a disposed container",
+            );
         return (...keys) => {
             this._implToDeps.set(provider, keys);
         };
@@ -307,13 +310,19 @@ export class InjectionContainerImpl<
     resolve<Key extends keyof Services>(
         key: Key,
     ): ServiceInstance<Services[Key]["factory"]> {
-        if (this.#disposed) throw new ContainerDisposedError("Attempted to resolve from a disposed container");
+        if (this.#disposed)
+            throw new ContainerDisposedError(
+                "Attempted to resolve from a disposed container",
+            );
         const resolver = this._ensureResolverCached(key);
         return resolver();
     }
 
     child(): InjectionContainerBuilder<Services> {
-        if (this.#disposed) throw new ContainerDisposedError("Attempted to create a child from a disposed container");
+        if (this.#disposed)
+            throw new ContainerDisposedError(
+                "Attempted to create a child from a disposed container",
+            );
 
         const result = new InjectionContainerBuilderImpl();
         result._serviceInfo = {};
@@ -381,7 +390,10 @@ export class InjectionContainerImpl<
         >(
             ...keys: Keys
         ): ((provider: P) => void) => {
-            if (this.#disposed) throw new ContainerDisposedError("Attempted to inject from a disposed container");
+            if (this.#disposed)
+                throw new ContainerDisposedError(
+                    "Attempted to inject from a disposed container",
+                );
             return (provider) => {
                 this._implToDeps.set(provider, keys);
             };
