@@ -2,7 +2,6 @@ import {
     InjectionContainer,
     InjectionContainerBuilder,
     InjectionContainerBuilderImpl,
-    InjectionContainerImpl,
 } from "./container.js";
 
 function builder(): InjectionContainerBuilder {
