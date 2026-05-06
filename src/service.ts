@@ -1,12 +1,17 @@
 /**
  * Factory function returning a service.
  */
-export type ServiceFactory<Service = any, Args extends any[] = any[]> = (...args: Args) => Service;
+export type ServiceFactory<Service = any, Args extends any[] = any[]> = (
+    ...args: Args
+) => Service;
 
 /**
  * Class constructor returning a service.
  */
-export type ServiceConstructor<Service = any, Args extends any[] = any[]> = new (...args: Args) => Service;
+export type ServiceConstructor<
+    Service = any,
+    Args extends any[] = any[],
+> = new (...args: Args) => Service;
 
 /**
  * Factory or constructor returning a service.
@@ -48,7 +53,10 @@ export type ServiceScope = (typeof SERVICE_SCOPES)[number];
 /**
  * Object type containing the service scope and factory for some service key.
  */
-export interface ServiceInfo<Scope extends ServiceScope = ServiceScope, T = any> {
+export interface ServiceInfo<
+    Scope extends ServiceScope = ServiceScope,
+    T = any,
+> {
     readonly scope: Scope;
     get factory(): ServiceFactory<T>;
 }

@@ -101,6 +101,165 @@ type RegistrationHandler<
     >;
 };
 
+type AsyncRegistrationHandler<
+    Services extends Record<PropertyKey, ServiceInfo>,
+    Key extends PropertyKey,
+    Scope extends ServiceScope,
+> = {
+    use<
+        Service extends Key extends keyof Services
+            ? ServiceInstance<Services[Key]["factory"]>
+            : unknown,
+    >(
+        lazyPromise:
+            | (() => ServiceProvider<Service>)
+            | Promise<() => ServiceProvider<Service>>,
+    ): AsyncInjectionContainerBuilder<
+        Prettify<
+            Omit<Services, Key> & {
+                [K in Key]: ServiceInfo<
+                    Scope,
+                    Key extends keyof Services
+                        ? ServiceInstance<Services[Key]["factory"]>
+                        : Service
+                >;
+            }
+        >
+    >;
+};
+
+export interface AsyncInjectionContainerBuilder<
+    Services extends Record<PropertyKey, ServiceInfo> = {},
+> {
+    /**
+     * **Singleton services resolve to the same instance for all child containers of the defining container.**
+     *
+     * Begins the registration of a singleton service assigned to the given key.
+     *
+     * _WARNING: Since singleton services are the same across child containers, it is important to recognize that any
+     * non-singleton dependencies of this service will be derived from the container it is registered in. Because of
+     * this it is recommended to only have singleton dependencies, but not strictly prohibited by this library._
+     *
+     * @param key The key to assign the service to.
+     * @returns A {@link RegistrationHandler} object with the {@link RegistrationHandler.use use} method to complete
+     * registration.
+     */
+    singleton<Key extends PropertyKey>(
+        key: KeyIfNotExistingSingletonKey<Services, Key>,
+    ): AsyncRegistrationHandler<Services, Key, "singleton">;
+
+    /**
+     * **Scoped services resolve to the same instance within a container.**
+     *
+     * Begins the registration of a scoped service assigned to the given key.
+     *
+     * @param key The key to assign the service to.
+     * @returns An object containing the 'use' method to complete registration of the service.
+     */
+    scoped<Key extends PropertyKey>(
+        key: KeyIfNotExistingSingletonKey<Services, Key>,
+    ): AsyncRegistrationHandler<Services, Key, "scoped">;
+
+    /**
+     * **Transient services always resolve to a new instance.**
+     *
+     * Begins the registration of a transient service assigned to the given key.
+     *
+     * @param key The key to assign the service to.
+     * @returns An object containing the 'use' method to complete registration of the service.
+     */
+    transient<Key extends PropertyKey>(
+        key: KeyIfNotExistingSingletonKey<Services, Key>,
+    ): AsyncRegistrationHandler<Services, Key, "transient">;
+
+    /**
+     * Constructs a container object from this builder.
+     */
+    build(): Promise<InjectionContainer<Services>>;
+}
+
+export class AsyncInjectionContainerBuilderImpl<
+    Services extends Record<PropertyKey, ServiceInfo> = {},
+> implements AsyncInjectionContainerBuilder<Services> {
+    #disposed: boolean = false;
+
+    #regPromises: Promise<void>[] = [];
+
+    _serviceInfo: Record<PropertyKey, ServiceInfoImpl> = {};
+    _implToDeps: Map<ServiceProvider, PropertyKey[]> = new Map();
+    _resolverCache: Map<PropertyKey, () => any> = new Map();
+
+    private _register<Key extends PropertyKey, Scope extends ServiceScope>(
+        key: KeyIfNotExistingSingletonKey<Services, Key>,
+        scope: Scope,
+    ): AsyncRegistrationHandler<Services, Key, Scope> {
+        if (
+            key in this._serviceInfo &&
+            this._serviceInfo[key].scope === "singleton"
+        )
+            throw Error(
+                `Attempted to override the singleton service ${String(key)}`,
+            );
+        return {
+            use: <Service>(
+                lazyPromise:
+                    | (() => ServiceProvider<Service>)
+                    | Promise<() => ServiceProvider<Service>>,
+            ): AsyncInjectionContainerBuilder<
+                Prettify<
+                    Omit<Services, Key> & {
+                        [K in Key]: ServiceInfo<Scope, Service>;
+                    }
+                >
+            > => {
+                this.#regPromises.push(
+                    new Promise<void>(async (resolve) => {
+                        const awaited = await lazyPromise;
+                        if (key in this._serviceInfo)
+                            this._resolverCache.delete(key);
+                        this._serviceInfo[key] = new ServiceInfoImpl(
+                            scope,
+                            awaited,
+                        );
+                        resolve();
+                    }),
+                );
+                return this as any;
+            },
+        };
+    }
+
+    singleton<Key extends PropertyKey>(
+        key: KeyIfNotExistingSingletonKey<Services, Key>,
+    ) {
+        return this._register(key, "singleton");
+    }
+
+    scoped<Key extends PropertyKey>(
+        key: KeyIfNotExistingSingletonKey<Services, Key>,
+    ) {
+        return this._register(key, "scoped");
+    }
+
+    transient<Key extends PropertyKey>(
+        key: KeyIfNotExistingSingletonKey<Services, Key>,
+    ) {
+        return this._register(key, "transient");
+    }
+
+    async build(): Promise<InjectionContainer<Services>> {
+        const result = Promise.all(this.#regPromises).then(() => {
+            const result = new InjectionContainerImpl();
+            result._serviceInfo = this._serviceInfo;
+            result._implToDeps = this._implToDeps;
+            result._resolverCache = this._resolverCache;
+            return result as unknown as InjectionContainer<Services>;
+        });
+
+        return result;
+    }
+}
+
 export interface InjectionContainerBuilder<
     Services extends Record<PropertyKey, ServiceInfo> = {},
 > {

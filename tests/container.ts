@@ -6,26 +6,18 @@ import {
     ImageService,
     VideoService,
     FileService,
-    GlobalConfig,
-    NameServiceFactory,
-    DateServiceImpl,
-    ChatServiceImpl,
-    ImageServiceImpl,
-    VideoServiceImpl,
-    FileServiceImpl,
-    FileServiceImpl2,
 } from "./setup";
 
 // prettier-ignore
-export const DI = UnusedName.builder()
-    .transient("DateService").use<DateService>(() => DateServiceImpl)
+export const DI = await UnusedName.asyncBuilder()
+    .transient("DateService").use<DateService>(import("./setup").then((v) => () => v.DateServiceImpl))
     .singleton("AppId").use(() => () => "AnApp")
-    .singleton("GlobalConfig").use(() => GlobalConfig)
-    .singleton("NameService").use<NameService>(() => NameServiceFactory)
-    .transient("ChatService").use<ChatService>(() => ChatServiceImpl)
-    .scoped("ImageService").use<ImageService>(() => ImageServiceImpl)
-    .singleton("VideoService").use<VideoService>(() => VideoServiceImpl)
-    .transient("FileService0").use<FileService>(() => FileServiceImpl)
-    .singleton("FileService1").use<FileService>(() => FileServiceImpl2)
+    .singleton("GlobalConfig").use(import("./setup").then((v) => () => v.GlobalConfig))
+    .singleton("NameService").use<NameService>(import("./setup").then((v) => () => v.NameServiceFactory))
+    .transient("ChatService").use<ChatService>(import("./setup").then((v) => () => v.ChatServiceImpl))
+    .scoped("ImageService").use<ImageService>(import("./setup").then((v) => () => v.ImageServiceImpl))
+    .singleton("VideoService").use<VideoService>(import("./setup").then((v) => () => v.VideoServiceImpl))
+    .transient("FileService0").use<FileService>(import("./setup").then((v) => () => v.FileServiceImpl))
+    .singleton("FileService1").use<FileService>(import("./setup").then((v) => () => v.FileServiceImpl2))
     .singleton("PixelWidth").use(() => () => 16)
     .build();
