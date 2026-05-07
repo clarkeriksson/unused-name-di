@@ -126,34 +126,6 @@ type AsyncRegistrationHandler<
             }
         >
     >;
-    imported<
-        Service extends Key extends keyof Services
-            ? ServiceInstance<Services[Key]["factory"]>
-            : unknown,
-    >(): {
-        from: <
-            Module extends Record<string, any>,
-            ExportName extends {
-                [K in keyof Module]: Module[K] extends ServiceProvider<Service>
-                    ? K
-                    : never;
-            }[keyof Module],
-        >(
-            lazyImport: () => Promise<Module>,
-            exportName: ExportName,
-        ) => AsyncInjectionContainerBuilder<
-            Prettify<
-                Omit<Services, Key> & {
-                    [K in Key]: ServiceInfo<
-                        Scope,
-                        Key extends keyof Services
-                            ? ServiceInstance<Services[Key]["factory"]>
-                            : Service
-                    >;
-                }
-            >
-        >;
-    };
 };
 
 export interface AsyncInjectionContainerBuilder<
@@ -253,63 +225,6 @@ export class AsyncInjectionContainerBuilderImpl<
                     }),
                 );
                 return this as any;
-            },
-            imported: <
-                Service extends Key extends keyof Services
-                    ? ServiceInstance<Services[Key]["factory"]>
-                    : unknown,
-            >(): {
-                from: <
-                    Module extends Record<string, any>,
-                    ExportName extends {
-                        [K in keyof Module]: Module[K] extends ServiceProvider<Service>
-                            ? K
-                            : never;
-                    }[keyof Module],
-                >(
-                    lazyImport: () => Promise<Module>,
-                    exportName: ExportName,
-                ) => AsyncInjectionContainerBuilder<
-                    Prettify<
-                        Omit<Services, Key> & {
-                            [K in Key]: ServiceInfo<
-                                Scope,
-                                Key extends keyof Services
-                                    ? ServiceInstance<Services[Key]["factory"]>
-                                    : Service
-                            >;
-                        }
-                    >
-                >;
-            } => {
-                return {
-                    from: <
-                        Module extends Record<string, any>,
-                        ExportName extends {
-                            [K in keyof Module]: Module[K] extends ServiceProvider<Service>
-                                ? K
-                                : never;
-                        }[keyof Module],
-                    >(
-                        lazyImport: () => Promise<Module>,
-                        exportName: ExportName,
-                    ) => {
-                        this.#regPromises.push(
-                            new Promise<void>(async (resolve) => {
-                                const module = await lazyImport();
-                                const awaited = () => module[exportName];
-                                if (key in this._serviceInfo)
-                                    this._resolverCache.delete(key);
-                                this._serviceInfo[key] = new ServiceInfoImpl(
-                                    scope,
-                                    awaited,
-                                );
-                                resolve();
-                            }),
-                        );
-                        return this as any;
-                    },
-                };
             },
         };
     }

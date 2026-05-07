@@ -211,3 +211,7 @@ const errorChild = toSingletonChild.child()
     .scoped("ImageService") // an error would appear here
     ...
 ```
+
+## Async Builders and Avoiding Circular Dependency
+
+Section in progress...

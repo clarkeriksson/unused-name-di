@@ -6,14 +6,13 @@ import {
     ImageService,
     VideoService,
     FileService,
-    GlobalConfig,
 } from "./setup";
 
 // prettier-ignore
 export const DI = await UnusedName.asyncBuilder()
-    .transient("DateService").imported<DateService>().from(() => import("./setup"), "DateServiceImpl")
+    .transient("DateService").use<DateService>(import("./setup").then((v) => () => v.DateServiceImpl))
     .singleton("AppId").use(() => () => "AnApp")
-    .singleton("GlobalConfig").imported<GlobalConfig>().from(() => import("./setup"), "GlobalConfig")
+    .singleton("GlobalConfig").use(import("./setup").then((v) => () => v.GlobalConfig))
     .singleton("NameService").use<NameService>(import("./setup").then((v) => () => v.NameServiceFactory))
     .transient("ChatService").use<ChatService>(import("./setup").then((v) => () => v.ChatServiceImpl))
     .scoped("ImageService").use<ImageService>(import("./setup").then((v) => () => v.ImageServiceImpl))
