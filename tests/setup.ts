@@ -1,3 +1,4 @@
+import { injector } from "./injector.js";
 import { DI } from "./container.js";
 
 export class GlobalConfig {
@@ -8,7 +9,7 @@ export interface NameService {
     chat: ChatService;
 }
 
-DI.inject(NameServiceFactory)("ChatService");
+injector.inject(NameServiceFactory)("ChatService");
 export function NameServiceFactory(chat: ChatService): NameService {
     return {
         chat,
@@ -24,7 +25,7 @@ export class DateServiceImpl implements DateService {
         return new Date();
     }
 }
-DI.inject(DateServiceImpl)();
+injector.inject(DateServiceImpl)();
 
 export interface ChatService {
     readonly date: DateService;
@@ -37,7 +38,7 @@ export class ChatServiceImpl implements ChatService {
     readonly file: FileService;
     readonly pxWidth: number;
     static {
-        DI.inject(this)("DateService", "FileService1", "PixelWidth");
+        injector.inject(this)("DateService", "FileService1", "PixelWidth");
     }
     constructor(date: DateService, file: FileService, pixelWidth: number) {
         this.date = date;
@@ -59,7 +60,8 @@ export class ImageServiceImpl implements ImageService {
         this.video = video;
     }
 }
-DI.dec.inject("PixelWidth", "VideoService")(ImageServiceImpl);
+injector.dec.inject("PixelWidth", "VideoService")(ImageServiceImpl);
+//injector.inject(ImageServiceImpl)("PixelWidth", "VideoService");
 
 export interface VideoService {
     readonly date: DateService;
@@ -71,7 +73,7 @@ export class VideoServiceImpl implements VideoService {
         this.date = date;
     }
 }
-DI.inject(VideoServiceImpl)("DateService");
+injector.inject(VideoServiceImpl)("DateService");
 
 export interface FileService {
     readonly date: DateService;
@@ -89,7 +91,7 @@ export class FileServiceImpl implements FileService {
         this.video = video;
     }
 }
-DI.inject(FileServiceImpl)("ImageService", "VideoService", "DateService");
+injector.inject(FileServiceImpl)("ImageService", "VideoService", "DateService");
 
 export class FileServiceImpl2 implements FileService {
     readonly date: DateService;
@@ -101,13 +103,17 @@ export class FileServiceImpl2 implements FileService {
         this.video = video;
     }
 }
-DI.inject(FileServiceImpl2)("ImageService", "VideoService", "DateService");
+injector.inject(FileServiceImpl2)(
+    "ImageService",
+    "VideoService",
+    "DateService",
+);
 
 export class ImageServiceNewImpl implements ImageService {
     readonly pxWidth: number;
     readonly video: VideoService;
     static {
-        DI.inject(this)("PixelWidth", "VideoService");
+        injector.inject(this)("PixelWidth", "VideoService");
     }
     constructor(pxWidth: number, video: VideoService) {
         this.pxWidth = pxWidth;

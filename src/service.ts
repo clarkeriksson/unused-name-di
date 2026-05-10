@@ -58,7 +58,9 @@ export interface ServiceInfo<
     T = any,
 > {
     readonly scope: Scope;
-    get factory(): ServiceFactory<T>;
+    readonly provider: ServiceProvider<T>;
+    readonly kind: "class" | "factory";
+    //get factory(): ServiceFactory<T>;
 }
 
 export const RAW_PROVIDER = Symbol("rawProvider");
@@ -69,18 +71,20 @@ export class ServiceInfoImpl<
 > implements ServiceInfo<Scope, Service> {
     readonly scope: Scope;
     readonly lazy: () => ServiceProvider<Service>;
-    private _factory: ServiceFactory<Service> | null = null;
-    get factory(): ServiceFactory<Service> {
-        return (this._factory ??= ServiceInfoImpl.normalize(this.lazy()));
+    private _provider: ServiceProvider<Service> | null = null;
+    get provider() {
+        return (this._provider ??= this.lazy());
     }
+    readonly kind: "class" | "factory";
 
-    get [RAW_PROVIDER](): ServiceProvider<Service> {
-        return this.lazy();
-    }
-
-    constructor(scope: Scope, lazy: () => ServiceProvider<Service>) {
+    constructor(
+        scope: Scope,
+        lazy: () => ServiceProvider<Service>,
+        kind: "class" | "factory",
+    ) {
         this.scope = scope;
         this.lazy = lazy;
+        this.kind = kind;
     }
 
     /**
@@ -90,20 +94,6 @@ export class ServiceInfoImpl<
         if (this.scope === "singleton") {
             return this;
         }
-        return new ServiceInfoImpl(this.scope, this.lazy);
-    }
-
-    private static isClass(fn: unknown): fn is new (...args: any[]) => any {
-        return typeof fn === "function" && !!fn.prototype?.constructor;
-    }
-
-    private static normalize<Service>(
-        provider: ServiceProvider<Service>,
-    ): ServiceFactory<Service> {
-        if (ServiceInfoImpl.isClass(provider)) {
-            return (...args: any[]) => new provider(...args);
-        } else {
-            return provider;
-        }
+        return new ServiceInfoImpl(this.scope, this.lazy, this.kind);
     }
 }

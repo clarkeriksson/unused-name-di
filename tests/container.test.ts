@@ -109,7 +109,7 @@ test("child initializes properly", () => {
 
     const newScope = DI.child()
         .singleton("TestPrimitive")
-        .use(() => () => sym)
+        .use(() => () => sym, { kind: "factory" })
         .build();
 
     const resolvedSym = newScope.resolve("TestPrimitive");

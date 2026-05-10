@@ -1,6 +1,8 @@
 import { ContainerDisposedError } from "./errors.js";
 import {
     RAW_PROVIDER,
+    ServiceConstructor,
+    ServiceFactory,
     ServiceInfoImpl,
     ServiceScope,
     type ServiceArgs,
@@ -38,7 +40,7 @@ export type KeysForValues<
 > = {
     [Index in keyof Values]: {
         [Key in keyof T]: Broaden<
-            ServiceInstance<T[Key]["factory"]>
+            ServiceInstance<T[Key]["provider"]>
         > extends Values[Index]
             ? Key
             : never;
@@ -83,17 +85,18 @@ type RegistrationHandler<
      */
     use<
         Service extends Key extends keyof Services
-            ? ServiceInstance<Services[Key]["factory"]>
+            ? ServiceInstance<Services[Key]["provider"]>
             : unknown,
     >(
         lazy: () => ServiceProvider<Service>,
+        options?: { kind: "factory" | "class" },
     ): InjectionContainerBuilder<
         Prettify<
             Omit<Services, Key> & {
                 [K in Key]: ServiceInfo<
                     Scope,
                     Key extends keyof Services
-                        ? ServiceInstance<Services[Key]["factory"]>
+                        ? ServiceInstance<Services[Key]["provider"]>
                         : Service
                 >;
             }
@@ -108,19 +111,20 @@ type AsyncRegistrationHandler<
 > = {
     use<
         Service extends Key extends keyof Services
-            ? ServiceInstance<Services[Key]["factory"]>
+            ? ServiceInstance<Services[Key]["provider"]>
             : unknown,
     >(
-        lazyPromise:
-            | (() => ServiceProvider<Service>)
-            | Promise<() => ServiceProvider<Service>>,
+        lazyPromise: () =>
+            | Promise<ServiceProvider<Service>>
+            | ServiceProvider<Service>,
+        options?: { kind: "factory" | "class" },
     ): AsyncInjectionContainerBuilder<
         Prettify<
             Omit<Services, Key> & {
                 [K in Key]: ServiceInfo<
                     Scope,
                     Key extends keyof Services
-                        ? ServiceInstance<Services[Key]["factory"]>
+                        ? ServiceInstance<Services[Key]["provider"]>
                         : Service
                 >;
             }
@@ -173,6 +177,36 @@ export interface AsyncInjectionContainerBuilder<
     ): AsyncRegistrationHandler<Services, Key, "transient">;
 
     /**
+     * Takes in a service constructor or factory and returns a function to specify the services to inject as parameters
+     * via a list of strongly-typed service keys.
+     *
+     * @param provider The target constructor or factory.
+     * @returns A function taking in the keys associated with services to inject.
+     */
+    inject<P extends ServiceProvider>(
+        provider: P,
+    ): {
+        <const Keys extends KeysForValues<Services, ServiceArgs<P>>>(
+            ...keys: Keys
+        ): void;
+    };
+
+    /**
+     * An object providing a decorator-specific injection method. Can only be used on class definitions and only
+     * requires keys associated with the services to inject. This is for TS5+ decorators matching the upcoming
+     * ECMAScript decorator feature, not experimental legacy decorators. This can be called outside of that context,
+     * but the type inference fails in those scenarios. Prefer the {@link InjectionContainer.inject} method instead.
+     */
+    readonly dec: {
+        inject<
+            const Keys extends KeysForValues<Services, ServiceArgs<P>>,
+            P extends ServiceProvider,
+        >(
+            ...keys: Keys
+        ): (provider: P) => void;
+    };
+
+    /**
      * Constructs a container object from this builder.
      */
     build(): Promise<InjectionContainer<Services>>;
@@ -183,7 +217,12 @@ export class AsyncInjectionContainerBuilderImpl<
 > implements AsyncInjectionContainerBuilder<Services> {
     #disposed: boolean = false;
 
-    #regPromises: Promise<void>[] = [];
+    #regPromises: {
+        key: PropertyKey;
+        scope: ServiceScope;
+        importer: () => Promise<ServiceProvider<any>>;
+        kind: "class" | "factory";
+    }[] = [];
 
     _serviceInfo: Record<PropertyKey, ServiceInfoImpl> = {};
     _implToDeps: Map<ServiceProvider, PropertyKey[]> = new Map();
@@ -202,9 +241,8 @@ export class AsyncInjectionContainerBuilderImpl<
             );
         return {
             use: <Service>(
-                lazyPromise:
-                    | (() => ServiceProvider<Service>)
-                    | Promise<() => ServiceProvider<Service>>,
+                lazyPromise: () => Promise<ServiceProvider<Service>>,
+                options: { kind: "factory" | "class" } = { kind: "class" },
             ): AsyncInjectionContainerBuilder<
                 Prettify<
                     Omit<Services, Key> & {
@@ -213,16 +251,22 @@ export class AsyncInjectionContainerBuilderImpl<
                 >
             > => {
                 this.#regPromises.push(
-                    new Promise<void>(async (resolve) => {
-                        const awaited = await lazyPromise;
-                        if (key in this._serviceInfo)
-                            this._resolverCache.delete(key);
-                        this._serviceInfo[key] = new ServiceInfoImpl(
-                            scope,
-                            awaited,
-                        );
-                        resolve();
-                    }),
+                    // new Promise<void>(async (resolve) => {
+                    //     // const awaited = await lazyPromise();
+                    //     // if (key in this._serviceInfo)
+                    //     //     this._resolverCache.delete(key);
+                    //     // this._serviceInfo[key] = new ServiceInfoImpl(
+                    //     //     scope,
+                    //     //     awaited,
+                    //     // );
+                    //     resolve();
+                    // }),
+                    {
+                        key,
+                        scope,
+                        importer: lazyPromise,
+                        kind: options.kind,
+                    },
                 );
                 return this as any;
             },
@@ -247,16 +291,73 @@ export class AsyncInjectionContainerBuilderImpl<
         return this._register(key, "transient");
     }
 
-    async build(): Promise<InjectionContainer<Services>> {
-        const result = Promise.all(this.#regPromises).then(() => {
-            const result = new InjectionContainerImpl();
-            result._serviceInfo = this._serviceInfo;
-            result._implToDeps = this._implToDeps;
-            result._resolverCache = this._resolverCache;
-            return result as unknown as InjectionContainer<Services>;
-        });
+    inject<P extends ServiceProvider>(
+        provider: P,
+    ): {
+        <const Keys extends KeysForValues<Services, ServiceArgs<P>>>(
+            ...keys: Keys
+        ): void;
+    } {
+        if (this.#disposed)
+            throw new ContainerDisposedError(
+                "Attempted to inject from a disposed container",
+            );
+        console.log(provider);
+        return (...keys) => {
+            this._implToDeps.set(provider, keys);
+        };
+    }
 
-        return result;
+    readonly dec: {
+        inject<
+            const Keys extends KeysForValues<Services, ServiceArgs<P>>,
+            const P extends ServiceProvider,
+        >(
+            ...keys: Keys
+        ): (provider: P) => void;
+    } = {
+        inject: <
+            const Keys extends KeysForValues<Services, ServiceArgs<P>>,
+            const P extends ServiceProvider,
+        >(
+            ...keys: Keys
+        ): ((provider: P) => void) => {
+            if (this.#disposed)
+                throw new ContainerDisposedError(
+                    "Attempted to inject from a disposed container",
+                );
+            return (provider) => {
+                this._implToDeps.set(provider, keys);
+            };
+        },
+    };
+
+    async build(): Promise<InjectionContainer<Services>> {
+        const resolved = await Promise.all(
+            this.#regPromises.map(async (reg) => ({
+                key: reg.key,
+                scope: reg.scope,
+                provider: await reg.importer(),
+                kind: reg.kind,
+            })),
+        );
+
+        for (const { key, scope, provider, kind } of resolved) {
+            if (key in this._serviceInfo) this._resolverCache.delete(key);
+            this._serviceInfo[key] = new ServiceInfoImpl(
+                scope,
+                () => provider,
+                kind,
+            );
+        }
+
+        console.log(this._implToDeps.size);
+
+        const result = new InjectionContainerImpl();
+        result._serviceInfo = this._serviceInfo;
+        result._implToDeps = this._implToDeps;
+        result._resolverCache = this._resolverCache;
+        return result as unknown as InjectionContainer<Services>;
     }
 }
 
@@ -305,18 +406,6 @@ export interface InjectionContainerBuilder<
     ): RegistrationHandler<Services, Key, "transient">;
 
     /**
-     * Constructs a container object from this builder.
-     */
-    build(): InjectionContainer<Services>;
-}
-
-/**
- * A dependency injection container. Multiple containers can exist.
- */
-export interface InjectionContainer<
-    Services extends Record<PropertyKey, ServiceInfo> = {},
-> {
-    /**
      * Takes in a service constructor or factory and returns a function to specify the services to inject as parameters
      * via a list of strongly-typed service keys.
      *
@@ -332,16 +421,6 @@ export interface InjectionContainer<
     };
 
     /**
-     * Provides an instance of the service associated with the given key, in compliance with the configuration.
-     *
-     * @param key The service key.
-     * @returns An instance of the associated service.
-     */
-    resolve<Key extends keyof Services>(
-        key: Key,
-    ): ServiceInstance<Services[Key]["factory"]>;
-
-    /**
      * An object providing a decorator-specific injection method. Can only be used on class definitions and only
      * requires keys associated with the services to inject. This is for TS5+ decorators matching the upcoming
      * ECMAScript decorator feature, not experimental legacy decorators. This can be called outside of that context,
@@ -355,6 +434,28 @@ export interface InjectionContainer<
             ...keys: Keys
         ): (provider: P) => void;
     };
+
+    /**
+     * Constructs a container object from this builder.
+     */
+    build(): InjectionContainer<Services>;
+}
+
+/**
+ * A dependency injection container. Multiple containers can exist.
+ */
+export interface InjectionContainer<
+    Services extends Record<PropertyKey, ServiceInfo> = {},
+> {
+    /**
+     * Provides an instance of the service associated with the given key, in compliance with the configuration.
+     *
+     * @param key The service key.
+     * @returns An instance of the associated service.
+     */
+    resolve<Key extends keyof Services>(
+        key: Key,
+    ): ServiceInstance<Services[Key]["provider"]>;
 
     /**
      * Creates a new container that inherits the configuration from the calling container. Can be extended upon without
@@ -396,6 +497,7 @@ export class InjectionContainerBuilderImpl<
         return {
             use: <Service>(
                 lazy: () => ServiceProvider<Service>,
+                options: { kind: "factory" | "class" } = { kind: "class" },
             ): InjectionContainerBuilder<
                 Prettify<
                     Omit<Services, Key> & {
@@ -408,7 +510,7 @@ export class InjectionContainerBuilderImpl<
                     ServiceInfo
                 >;
                 if (key in this._serviceInfo) this._resolverCache.delete(key);
-                _info[key] = new ServiceInfoImpl(scope, lazy);
+                _info[key] = new ServiceInfoImpl(scope, lazy, options.kind);
                 return this as any;
             },
         };
@@ -432,6 +534,46 @@ export class InjectionContainerBuilderImpl<
         return this._register(key, "transient");
     }
 
+    inject<P extends ServiceProvider>(
+        provider: P,
+    ): {
+        <const Keys extends KeysForValues<Services, ServiceArgs<P>>>(
+            ...keys: Keys
+        ): void;
+    } {
+        if (this.#disposed)
+            throw new ContainerDisposedError(
+                "Attempted to inject from a disposed container",
+            );
+        return (...keys) => {
+            this._implToDeps.set(provider, keys);
+        };
+    }
+
+    readonly dec: {
+        inject<
+            const Keys extends KeysForValues<Services, ServiceArgs<P>>,
+            const P extends ServiceProvider,
+        >(
+            ...keys: Keys
+        ): (provider: P) => void;
+    } = {
+        inject: <
+            const Keys extends KeysForValues<Services, ServiceArgs<P>>,
+            const P extends ServiceProvider,
+        >(
+            ...keys: Keys
+        ): ((provider: P) => void) => {
+            if (this.#disposed)
+                throw new ContainerDisposedError(
+                    "Attempted to inject from a disposed container",
+                );
+            return (provider) => {
+                this._implToDeps.set(provider, keys);
+            };
+        },
+    };
+
     build(): InjectionContainer<Services> {
         const result = new InjectionContainerImpl();
         result._serviceInfo = this._serviceInfo;
@@ -450,25 +592,9 @@ export class InjectionContainerImpl<
     _implToDeps: Map<ServiceProvider, PropertyKey[]> = new Map();
     _resolverCache: Map<PropertyKey, () => any> = new Map();
 
-    inject<P extends ServiceProvider>(
-        provider: P,
-    ): {
-        <const Keys extends KeysForValues<Services, ServiceArgs<P>>>(
-            ...keys: Keys
-        ): void;
-    } {
-        if (this.#disposed)
-            throw new ContainerDisposedError(
-                "Attempted to inject from a disposed container",
-            );
-        return (...keys) => {
-            this._implToDeps.set(provider, keys);
-        };
-    }
-
     resolve<Key extends keyof Services>(
         key: Key,
-    ): ServiceInstance<Services[Key]["factory"]> {
+    ): ServiceInstance<Services[Key]["provider"]> {
         if (this.#disposed)
             throw new ContainerDisposedError(
                 "Attempted to resolve from a disposed container",
@@ -507,21 +633,40 @@ export class InjectionContainerImpl<
 
     private _ensureResolverCached<Key extends keyof Services>(
         key: Key,
-    ): () => ServiceInstance<Services[Key]["factory"]> {
+    ): () => ServiceInstance<Services[Key]["provider"]> {
         const cached = this._resolverCache.get(key);
         if (cached) return cached;
 
         const info = this._serviceInfo[key];
         if (!info) throw new Error(`No service for key '${String(key)}' found`);
 
-        const depKeys = this._implToDeps.get(info[RAW_PROVIDER]) ?? [];
+        const depKeys = this._implToDeps.get(info.provider) ?? [];
 
         let argResolvers = depKeys.map((depKey) =>
             this._ensureResolverCached(depKey),
         );
         const resolveArgs = () => argResolvers.map((r) => r());
 
-        const resolve = () => info.factory(...resolveArgs());
+        let resolve: () => ServiceInstance<Services[Key]["provider"]>;
+        if (info.kind === "class") {
+            try {
+                resolve = () =>
+                    new (info.provider as ServiceConstructor)(...resolveArgs());
+            } catch {
+                throw new Error(
+                    `unable to resolve service '${key.toString()}' as a class, ensure it is registered as the correct kind`,
+                );
+            }
+        } else {
+            try {
+                resolve = () =>
+                    (info.provider as ServiceFactory)(...resolveArgs());
+            } catch {
+                throw new Error(
+                    `unable to resolve service '${key.toString()}' as a factory, ensure it is registered as the correct kind`,
+                );
+            }
+        }
 
         const resolver =
             info.scope === "singleton" || info.scope === "scoped"
@@ -534,30 +679,6 @@ export class InjectionContainerImpl<
         this._resolverCache.set(key, resolver);
         return resolver;
     }
-
-    readonly dec: {
-        inject<
-            const Keys extends KeysForValues<Services, ServiceArgs<P>>,
-            const P extends ServiceProvider,
-        >(
-            ...keys: Keys
-        ): (provider: P) => void;
-    } = {
-        inject: <
-            const Keys extends KeysForValues<Services, ServiceArgs<P>>,
-            const P extends ServiceProvider,
-        >(
-            ...keys: Keys
-        ): ((provider: P) => void) => {
-            if (this.#disposed)
-                throw new ContainerDisposedError(
-                    "Attempted to inject from a disposed container",
-                );
-            return (provider) => {
-                this._implToDeps.set(provider, keys);
-            };
-        },
-    };
 
     dispose(): void {
         if (this.#disposed) return;

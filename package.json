@@ -1,17 +1,17 @@
 {
   "name": "unused-name",
-  "version": "0.0.6",
+  "version": "0.0.10",
   "description": "Small dependency injection implementation with no runtime dependencies",
   "license": "MIT",
   "author": "Clark Eriksson",
   "keywords": [
-    "dependency injection", 
-    "dependency", 
-    "injection", 
-    "di", 
-    "ioc", 
-    "container", 
-    "javascript", 
+    "dependency injection",
+    "dependency",
+    "injection",
+    "di",
+    "ioc",
+    "container",
+    "javascript",
     "typescript"
   ],
   "type": "module",
@@ -26,6 +26,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@types/node": "^25.6.2",
     "eslint": "^10.1.0",
     "typescript": "^6.0.2",
     "vite": "^8.0.3",
