@@ -4,6 +4,7 @@ import {
     InjectionContainerBuilderImpl,
     AsyncInjectionContainerBuilder,
     AsyncInjectionContainerBuilderImpl,
+    CONTAINER,
 } from "./container.js";
 
 function builder(): InjectionContainerBuilder {
@@ -17,6 +18,7 @@ function asyncBuilder(): AsyncInjectionContainerBuilder {
 const UnusedName = {
     builder,
     asyncBuilder,
+    CONTAINER: CONTAINER,
 } as const;
 
 export { UnusedName, type InjectionContainer };

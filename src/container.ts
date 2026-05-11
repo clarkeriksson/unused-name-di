@@ -11,6 +11,8 @@ import {
     type ServiceProvider,
 } from "./service.js";
 
+export const CONTAINER = Symbol("unused-name-di-container");
+
 /**
  * Utility type to simplify and expand certain object type previews.
  */
@@ -209,7 +211,11 @@ export interface AsyncInjectionContainerBuilder<
     /**
      * Constructs a container object from this builder.
      */
-    build(): Promise<InjectionContainer<Services>>;
+    build(): Promise<
+        InjectionContainer<
+            Prettify<Services & { [CONTAINER]: InjectionContainer<Services> }>
+        >
+    >;
 }
 
 export class AsyncInjectionContainerBuilderImpl<
@@ -332,7 +338,11 @@ export class AsyncInjectionContainerBuilderImpl<
         },
     };
 
-    async build(): Promise<InjectionContainer<Services>> {
+    async build(): Promise<
+        InjectionContainer<
+            Prettify<Services & { [CONTAINER]: InjectionContainer<Services> }>
+        >
+    > {
         const resolved = await Promise.all(
             this.#regPromises.map(async (reg) => ({
                 key: reg.key,
@@ -351,9 +361,16 @@ export class AsyncInjectionContainerBuilderImpl<
             );
         }
 
-        console.log(this._implToDeps.size);
+        const result =
+            new InjectionContainerImpl() as InjectionContainerImpl<Services>;
 
-        const result = new InjectionContainerImpl();
+        this._resolverCache.delete(CONTAINER);
+        this._serviceInfo[CONTAINER] = new ServiceInfoImpl(
+            "scoped",
+            () => () => result,
+            "factory",
+        );
+
         result._serviceInfo = this._serviceInfo;
         result._implToDeps = this._implToDeps;
         result._resolverCache = this._resolverCache;
@@ -438,7 +455,9 @@ export interface InjectionContainerBuilder<
     /**
      * Constructs a container object from this builder.
      */
-    build(): InjectionContainer<Services>;
+    build(): InjectionContainer<
+        Prettify<Services & { [CONTAINER]: InjectionContainer<Services> }>
+    >;
 }
 
 /**
@@ -574,8 +593,18 @@ export class InjectionContainerBuilderImpl<
         },
     };
 
-    build(): InjectionContainer<Services> {
+    build(): InjectionContainer<
+        Prettify<Services & { [CONTAINER]: InjectionContainer<Services> }>
+    > {
         const result = new InjectionContainerImpl();
+
+        this._resolverCache.delete(CONTAINER);
+        this._serviceInfo[CONTAINER] = new ServiceInfoImpl(
+            "scoped",
+            () => () => result,
+            "factory",
+        );
+
         result._serviceInfo = this._serviceInfo;
         result._implToDeps = this._implToDeps;
         result._resolverCache = this._resolverCache;
