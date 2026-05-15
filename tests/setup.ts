@@ -1,5 +1,7 @@
 import { injector } from "./injector.js";
 import { DI } from "./container.js";
+import { UnusedName } from "../src_ref/index.js";
+import { InjectionContainerBuilder } from "../src_ref/container.js";
 
 export class GlobalConfig {
     apiKey: string = "keykeykey";

@@ -1,4 +1,4 @@
-import { UnusedName } from "../src";
+import { UnusedName } from "../src_ref";
 import {
     NameService,
     DateService,
