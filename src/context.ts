@@ -73,6 +73,9 @@ export interface ServiceContext<
     ): ServiceProviderWithArgKeys<C, S, A>;
 }
 
+export type ServiceContextProviders<Context extends ServiceContext> =
+    Context extends ServiceContext<infer S> ? S : never;
+
 export class ServiceContextImpl<
     S extends Record<PropertyKey, ConstructorOrFactory> = {},
     I extends Record<PropertyKey, unknown> = {

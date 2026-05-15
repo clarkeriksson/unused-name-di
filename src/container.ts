@@ -15,49 +15,58 @@ import {
 } from "./global";
 
 export interface ContainerService<
-    Provider extends ConstructorOrFactory,
-    Scope extends ServiceScopeKey,
+    Provider extends ConstructorOrFactory = ConstructorOrFactory,
+    Scope extends ServiceScopeKey = ServiceScopeKey,
 > {
     readonly provider: Provider;
     readonly scope: (typeof ServiceScope)[Scope];
 }
 
+export type ContainerServiceProviderMap<
+    Services extends Record<PropertyKey, ContainerService>,
+> = {
+    [K in keyof Services]: Services[K]["provider"];
+};
+
 export interface ServiceContainerBuilder<
-    C extends ServiceContext,
-    T extends Record<PropertyKey, ConstructorOrFactory> = {},
-    I extends Record<PropertyKey, ServiceScopeToken> = {},
-    S extends Record<PropertyKey, ConstructorOrFactory> =
-        C extends ServiceContext<infer U> ? U : never,
+    Context extends ServiceContext,
+    Services extends Record<PropertyKey, ContainerService> = {},
 > {
     add<
-        const K extends keyof S,
-        const P extends ServiceProviderWithArgKeys<
-            S[K],
-            T,
-            KeyTupleForBroadenedValueTuple<
-                ConstructorOrFactoryMapToInstanceMap<T>,
-                ConstructorOrFactoryArgs<S[K]>
-            >
-        >,
+        const K extends Context extends ServiceContext<infer Providers>
+            ? keyof Providers
+            : never,
+        const P extends Context extends ServiceContext<infer Providers>
+            ? ServiceProviderWithArgKeys<
+                  Providers[K],
+                  ContainerServiceProviderMap<Services>,
+                  KeyTupleForBroadenedValueTuple<
+                      ConstructorOrFactoryMapToInstanceMap<
+                          ContainerServiceProviderMap<Services>
+                      >,
+                      ConstructorOrFactoryArgs<Providers[K]>
+                  >
+              >
+            : never,
         const U extends ServiceScopeKey,
     >(
         key: K,
         provider: P,
         scope: U,
     ): ServiceContainerBuilder<
-        C,
-        Prettify<Omit<T, K> & { [Key in K]: P }>,
-        Prettify<Omit<I, K> & { [Key in K]: U }>
+        Context,
+        Prettify<Omit<Services, K> & { [Key in K]: ContainerService<P, U> }>
     >;
 }
 
 export interface ServiceContainer<
     C extends ServiceContext,
-    S extends Record<PropertyKey, ConstructorOrFactory>,
-    I extends Record<PropertyKey, ServiceScopeToken>,
+    S extends Record<PropertyKey, ContainerService>,
 > {
-    resolve<const K extends keyof S>(key: K): ConstructorOrFactoryReturn<S[K]>;
-    child(): ServiceContainerBuilder<C, S, I>;
+    resolve<const K extends keyof S>(
+        key: K,
+    ): ConstructorOrFactoryReturn<S[K]["provider"]>;
+    child(): ServiceContainerBuilder<C, S>;
 }
 
 const Testicle = class {
