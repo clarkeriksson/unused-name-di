@@ -14,16 +14,41 @@ export declare type BroadenPrimitiveConst<T> = T extends string
             ? bigint
             : T;
 
+export declare type Constructor<
+    T = unknown,
+    Args extends readonly any[] = any[],
+> = new (...args: Args) => T;
+export declare type Factory<
+    T = unknown,
+    Args extends readonly any[] = any[],
+> = (...args: Args) => T;
+
+export declare type ConstructorArgs<T> =
+    T extends Constructor<any, infer Args> ? Args : never;
+export declare type FactoryArgs<T> =
+    T extends Factory<any, infer Args> ? Args : never;
+
+export declare type ConstructorReturn<T> =
+    T extends Constructor<infer Return, any> ? Return : never;
+export declare type FactoryReturn<T> =
+    T extends Factory<infer Return, any> ? Return : never;
+
 export declare type ConstructorOrFactory<
     T = unknown,
     Args extends readonly any[] = any[],
-> = ((...args: Args) => T) | (new (...args: Args) => T);
+> = Constructor<T, Args> | Factory<T, Args>;
 
-export declare type ConstructorOrFactoryArgs<T extends ConstructorOrFactory> =
-    T extends ConstructorOrFactory<unknown, infer A> ? A : never;
+export declare type ConstructorOrFactoryArgs<T> = T extends Constructor
+    ? ConstructorArgs<T>
+    : T extends Factory
+      ? FactoryArgs<T>
+      : never;
 
-export declare type ConstructorOrFactoryReturn<T extends ConstructorOrFactory> =
-    T extends ConstructorOrFactory<infer U, any[]> ? U : never;
+export declare type ConstructorOrFactoryReturn<T> = T extends Constructor
+    ? ConstructorReturn<T>
+    : T extends Factory
+      ? FactoryReturn<T>
+      : never;
 
 export declare type ConstructorOrFactoryMapToInstanceMap<
     T extends Record<PropertyKey, ConstructorOrFactory>,
@@ -63,3 +88,17 @@ export declare type ServiceProvider<
     Service = any,
     Args extends any[] = any[],
 > = ServiceFactory<Service, Args> | ServiceConstructor<Service, Args>;
+
+export declare type MapToProperty<T, K extends keyof T[keyof T]> = {
+    [Key in keyof T]: T[Key][K];
+};
+
+export declare type DeepMapToProperty<T, Path extends string> = {
+    [P in keyof T]: Path extends `${infer Key}.${infer Rest}`
+        ? Key extends keyof T[P]
+            ? DeepMapToProperty<{ [I in P]: T[P][Key] }, Rest>[P]
+            : never
+        : Path extends keyof T[P]
+          ? T[P][Path]
+          : never;
+};

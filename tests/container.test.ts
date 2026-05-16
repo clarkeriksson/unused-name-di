@@ -1,64 +1,89 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { test, expect } from "vitest";
+import { test, expect, beforeAll } from "vitest";
 
-import { DI } from "./container";
+import { context } from "./context";
 import {
-    ChatServiceImpl,
-    DateServiceImpl,
-    FileServiceImpl,
+    ChatService,
+    DateService,
+    FileService0,
+    FileService1,
     GlobalConfig,
-    ImageServiceImpl,
-    ImageServiceNewImpl,
-    VideoServiceImpl,
+    ImageService,
+    ImageServiceNew,
+    NameServiceFactory,
+    VideoService,
 } from "./setup";
 
+const DI = context
+    .child()
+    .factory(
+        "AppId",
+        context.inject(() => "AnApp", []),
+        "singleton",
+    )
+    .factory(
+        "PixelWidth",
+        context.inject(() => 16, []),
+        "singleton",
+    )
+    .ctor("DateService", DateService, "transient")
+    .ctor("GlobalConfig", GlobalConfig, "singleton")
+    .ctor("VideoService", VideoService, "singleton")
+    .ctor("ImageService", ImageService, "scoped")
+    .ctor("FileService0", FileService0, "transient")
+    .ctor("FileService1", FileService1, "singleton")
+    .ctor("ChatService", ChatService, "transient")
+    .factory("NameService", NameServiceFactory, "singleton")
+    .build();
+
 test("container is initialized", () => {
+    console.log(DI);
     expect(DI).toBeDefined();
 });
 
 test("can resolve transient service correctly", () => {
     const fileService = DI.resolve("FileService0");
-    expect(fileService).toBeInstanceOf(FileServiceImpl);
+    expect(fileService).toBeInstanceOf(FileService0);
 
     const date = fileService.date;
     const image = fileService.image;
     const video = fileService.video;
 
-    expect(date).toBeInstanceOf(DateServiceImpl);
+    expect(date).toBeInstanceOf(DateService);
 
-    expect(image).toBeInstanceOf(ImageServiceImpl);
+    expect(image).toBeInstanceOf(ImageService);
 
-    expect(video).toBeInstanceOf(VideoServiceImpl);
+    expect(video).toBeInstanceOf(VideoService);
 
     const fileServiceAgain = DI.resolve("FileService0");
-    expect(fileServiceAgain).toBeInstanceOf(FileServiceImpl);
+    expect(fileServiceAgain).toBeInstanceOf(FileService0);
 });
 
 test("can resolve scoped service correctly", () => {
     const imageService = DI.resolve("ImageService");
-    expect(imageService).toBeInstanceOf(ImageServiceImpl);
+    expect(imageService).toBeInstanceOf(ImageService);
 
     const px = imageService.pxWidth;
     const video = imageService.video;
 
     expect(px).toBeTypeOf("number");
 
-    expect(video).toBeInstanceOf(VideoServiceImpl);
+    expect(video).toBeInstanceOf(VideoService);
 
     const imageServiceAgain = DI.resolve("ImageService");
-    expect(imageServiceAgain).toBeInstanceOf(ImageServiceImpl);
+    expect(imageServiceAgain).toBeInstanceOf(ImageService);
 });
 
 test("can resolve singleton service correctly", () => {
     const video = DI.resolve("VideoService");
-    expect(video).toBeInstanceOf(VideoServiceImpl);
+    expect(video).toBeInstanceOf(VideoService);
 
     const date = video.date;
 
-    expect(date).toBeInstanceOf(DateServiceImpl);
+    expect(date).toBeInstanceOf(DateService);
 
     const videoAgain = DI.resolve("VideoService");
-    expect(videoAgain).toBeInstanceOf(VideoServiceImpl);
+    expect(videoAgain).toBeInstanceOf(VideoService);
 });
 
 test("transient services are distinct instances", () => {
@@ -85,7 +110,7 @@ test("singleton services are the same in a container", () => {
 test("services injected in static blocks work", () => {
     const chatService = DI.resolve("ChatService");
     expect(chatService).toBeDefined();
-    expect(chatService).toBeInstanceOf(ChatServiceImpl);
+    expect(chatService).toBeInstanceOf(ChatService);
 });
 
 test("services registered by implementation alone work", () => {
@@ -108,8 +133,11 @@ test("child initializes properly", () => {
     const sym = Symbol();
 
     const newScope = DI.child()
-        .singleton("TestPrimitive")
-        .use(() => () => sym, { kind: "factory" })
+        .factory(
+            "TestPrimitive",
+            context.inject(() => sym, []),
+            "singleton",
+        )
         .build();
 
     const resolvedSym = newScope.resolve("TestPrimitive");
@@ -144,12 +172,12 @@ test("scoped services are different across containers", () => {
 test("non-singleton services can be overriden", () => {
     const child = DI.child()
         .transient("ImageService")
-        .use(() => ImageServiceNewImpl)
+        .use(() => ImageServiceNew)
         .build();
 
     const image = child.resolve("ImageService");
 
-    expect(image).toBeInstanceOf(ImageServiceNewImpl);
+    expect(image).toBeInstanceOf(ImageServiceNew);
 });
 
 test("singleton services cannot be overriden", () => {
@@ -159,15 +187,14 @@ test("singleton services cannot be overriden", () => {
 
 test("singleton services created in child containers cannot be overriden further down the hierarchy", () => {
     const child = DI.child()
-        .singleton("ImageService")
-        .use(() => ImageServiceNewImpl)
+        .ctor("ImageService", ImageServiceNew, "singleton")
         .build();
 
     const image = child.resolve("ImageService");
     const imageAgain = child.resolve("ImageService");
 
     expect(image.pxWidth).toBeTypeOf("number");
-    expect(image.video).toBeInstanceOf(VideoServiceImpl);
+    expect(image.video).toBeInstanceOf(VideoService);
 
     expect(image).toBe(imageAgain);
 
@@ -175,8 +202,7 @@ test("singleton services created in child containers cannot be overriden further
     expect(() => child.child().scoped("ImageService")).toThrow();
 
     const otherChild = DI.child()
-        .transient("ImageService")
-        .use(() => ImageServiceNewImpl)
+        .ctor("ImageService", ImageServiceNew, "transient")
         .build();
 
     const otherImage = otherChild.resolve("ImageService");

@@ -1,22 +1,31 @@
 import { ARGS, UNUSED_NAME_SERVICE } from "./const";
 import {
+    ServiceContainerBuilder,
+    ServiceContainerBuilderImpl,
+} from "./container";
+import {
+    Constructor,
+    ConstructorArgs,
     ConstructorOrFactory,
     ConstructorOrFactoryArgs,
-    ConstructorOrFactoryMapToInstanceMap,
-    ConstructorOrFactoryReturn,
+    Factory,
+    FactoryArgs,
     KeyTupleForBroadenedValueTuple,
+    Prettify,
 } from "./global";
 
 export interface ServiceContextBuilder<
-    S extends Record<PropertyKey, ConstructorOrFactory> = {},
+    S extends Record<PropertyKey, unknown> = {},
 > {
     forKey<const K extends PropertyKey>(
         key: K,
     ): {
         useType: <const T>() => ServiceContextBuilder<
-            Omit<S, K> & {
-                [Key in K]: ConstructorOrFactory<T>;
-            }
+            Prettify<
+                Omit<S, K> & {
+                    [Key in K]: T;
+                }
+            >
         >;
     };
 
@@ -24,7 +33,7 @@ export interface ServiceContextBuilder<
 }
 
 export class ServiceContextBuilderImpl<
-    S extends Record<PropertyKey, ConstructorOrFactory> = {},
+    S extends Record<PropertyKey, unknown> = {},
 > implements ServiceContextBuilder<S> {
     private readonly _impls: Map<PropertyKey, ServiceProviderWithArgKeys[]>;
 
@@ -37,7 +46,7 @@ export class ServiceContextBuilderImpl<
     ): {
         useType: <const T>() => ServiceContextBuilder<
             Omit<S, K> & {
-                [Key in K]: ConstructorOrFactory<T>;
+                [Key in K]: T;
             }
         >;
     } {
@@ -55,32 +64,26 @@ export class ServiceContextBuilderImpl<
     }
 }
 
-export interface ServiceContext<
-    S extends Record<PropertyKey, ConstructorOrFactory> = {},
-    I extends Record<PropertyKey, unknown> = {
-        [K in keyof S]: ConstructorOrFactoryReturn<S[K]>;
-    },
-> {
+export interface ServiceContext<S extends Record<PropertyKey, unknown> = {}> {
     inject<
         const C extends ConstructorOrFactory,
         const A extends KeyTupleForBroadenedValueTuple<
-            I,
+            S,
             ConstructorOrFactoryArgs<C>
         >,
     >(
         provider: C,
         args: A,
     ): ServiceProviderWithArgKeys<C, S, A>;
+
+    child(): ServiceContainerBuilder<this>;
 }
 
 export type ServiceContextProviders<Context extends ServiceContext> =
     Context extends ServiceContext<infer S> ? S : never;
 
 export class ServiceContextImpl<
-    S extends Record<PropertyKey, ConstructorOrFactory> = {},
-    I extends Record<PropertyKey, unknown> = {
-        [K in keyof S]: ConstructorOrFactoryReturn<S[K]>;
-    },
+    S extends Record<PropertyKey, unknown> = {},
 > implements ServiceContext<S> {
     private readonly _impls: Map<PropertyKey, ServiceProviderWithArgKeys[]>;
     private readonly _keys: Set<PropertyKey>;
@@ -98,7 +101,7 @@ export class ServiceContextImpl<
     inject<
         const C extends ConstructorOrFactory,
         const A extends KeyTupleForBroadenedValueTuple<
-            I,
+            S,
             ConstructorOrFactoryArgs<C>
         >,
     >(provider: C, args: A): ServiceProviderWithArgKeys<C, S, A> {
@@ -107,45 +110,89 @@ export class ServiceContextImpl<
             [UNUSED_NAME_SERVICE]: true as const,
         });
     }
-}
 
-export type ServiceProviderWithArgKeys<
-    S extends ConstructorOrFactory = any,
-    R extends Record<PropertyKey, ConstructorOrFactory> = any,
-    A extends KeyTupleForBroadenedValueTuple<
-        ConstructorOrFactoryMapToInstanceMap<R>,
-        ConstructorOrFactoryArgs<S>
-    > = any,
-> = S & {
-    readonly [ARGS]: A;
-    readonly [UNUSED_NAME_SERVICE]: true;
-};
-
-class Testicle {
-    test0: number;
-    test1: string;
-    constructor(test0: number, test1: string) {
-        this.test0 = test0;
-        this.test1 = test1;
+    child(): ServiceContainerBuilder<this> {
+        return new ServiceContainerBuilderImpl(this, {});
     }
 }
 
-type Test = ServiceProviderWithArgKeys<
-    typeof Testicle,
-    {
-        Service0Key: () => Testicle;
-        Num0: () => number;
-        Num1: () => number;
-        String0: () => string;
-    },
-    ["Num0", "String0"]
->;
+export type ServiceConstructorWithArgKeys<
+    Provider extends Constructor = Constructor,
+    Context extends Record<PropertyKey, unknown> = any,
+    Args extends KeyTupleForBroadenedValueTuple<
+        Context,
+        ConstructorArgs<Provider>
+    > = any,
+> = Provider & {
+    readonly [ARGS]: Args;
+    readonly [UNUSED_NAME_SERVICE]: true;
+};
 
-const ctx = new ServiceContextImpl<{
-    Service0Key: typeof Testicle;
-    Num0: () => number;
-    Num1: () => number;
-    String0: () => string;
-}>(new Map(), new Set());
+export type ServiceFactoryWithArgKeys<
+    Provider extends Factory = Factory,
+    Context extends Record<PropertyKey, unknown> = any,
+    Args extends KeyTupleForBroadenedValueTuple<
+        Context,
+        FactoryArgs<Provider>
+    > = any,
+> = Provider & {
+    readonly [ARGS]: Args;
+    readonly [UNUSED_NAME_SERVICE]: true;
+};
 
-const test = ctx.inject(Testicle, ["Num0", "String0"]);
+export type ServiceProviderWithArgKeys<
+    Provider extends ConstructorOrFactory = ConstructorOrFactory,
+    Context extends Record<PropertyKey, unknown> = any,
+    Args extends KeyTupleForBroadenedValueTuple<
+        Context,
+        ConstructorOrFactoryArgs<Provider>
+    > = any,
+> = Provider & {
+    readonly [ARGS]: Args;
+    readonly [UNUSED_NAME_SERVICE]: true;
+};
+
+// interface TesticleInterface {
+//     test0: number;
+//     test1: string;
+// }
+
+// class Testicle implements TesticleInterface {
+//     test0: number;
+//     test1: string;
+//     constructor(test0: number, test1: string) {
+//         this.test0 = test0;
+//         this.test1 = test1;
+//     }
+// }
+
+// type Test = ServiceProviderWithArgKeys<
+//     typeof Testicle,
+//     {
+//         Service0Key: Testicle;
+//         Num0: number;
+//         Num1: number;
+//         String0: string;
+//     },
+//     ["Num0", "String0"]
+// >;
+
+// // const ctx = new ServiceContextImpl<{
+// //     Service0Key: typeof Testicle;
+// //     Num0: () => number;
+// //     Num1: () => number;
+// //     String0: () => string;
+// // }>(new Map(), new Set());
+
+// const ctx = new ServiceContextBuilderImpl()
+//     .forKey("Service0Key")
+//     .useType<TesticleInterface>()
+//     .forKey("Num0")
+//     .useType<number>()
+//     .forKey("Num1")
+//     .useType<number>()
+//     .forKey("String0")
+//     .useType<string>()
+//     .build();
+
+// const test = ctx.inject(Testicle, ["Num0", "String0"]);
