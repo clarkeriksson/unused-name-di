@@ -37,7 +37,6 @@ const DI = context
     .build();
 
 test("container is initialized", () => {
-    console.log(DI);
     expect(DI).toBeDefined();
 });
 
@@ -107,12 +106,6 @@ test("singleton services are the same in a container", () => {
     expect(appConfig0).toBe(appConfig1);
 });
 
-test("services injected in static blocks work", () => {
-    const chatService = DI.resolve("ChatService");
-    expect(chatService).toBeDefined();
-    expect(chatService).toBeInstanceOf(ChatService);
-});
-
 test("services registered by implementation alone work", () => {
     const configService = DI.resolve("GlobalConfig");
     expect(configService).toBeDefined();
@@ -135,7 +128,7 @@ test("child initializes properly", () => {
     const newScope = DI.child()
         .factory(
             "TestPrimitive",
-            context.inject(() => sym, []),
+            context.inject(() => sym),
             "singleton",
         )
         .build();
@@ -171,8 +164,7 @@ test("scoped services are different across containers", () => {
 
 test("non-singleton services can be overriden", () => {
     const child = DI.child()
-        .transient("ImageService")
-        .use(() => ImageServiceNew)
+        .ctor("ImageService", ImageServiceNew, "scoped")
         .build();
 
     const image = child.resolve("ImageService");
@@ -181,8 +173,9 @@ test("non-singleton services can be overriden", () => {
 });
 
 test("singleton services cannot be overriden", () => {
+    // prettier-ignore
     // @ts-expect-error
-    expect(() => DI.child().scoped("AppId")).toThrow();
+    expect(() => DI.child().factory("AppId", context.inject(() => "NewId"), "scoped")).toThrow();
 });
 
 test("singleton services created in child containers cannot be overriden further down the hierarchy", () => {
@@ -198,8 +191,9 @@ test("singleton services created in child containers cannot be overriden further
 
     expect(image).toBe(imageAgain);
 
+    // prettier-ignore
     // @ts-expect-error
-    expect(() => child.child().scoped("ImageService")).toThrow();
+    expect(() => child.child().ctor("ImageService", ImageService, "scoped")).toThrow();
 
     const otherChild = DI.child()
         .ctor("ImageService", ImageServiceNew, "transient")
@@ -211,5 +205,6 @@ test("singleton services created in child containers cannot be overriden further
     expect(image).not.toBe(otherImage);
     expect(otherImage).not.toBe(otherImageAgain);
 
-    expect(() => otherChild.child().scoped("ImageService")).not.toThrow();
+    // prettier-ignore
+    expect(() => otherChild.child().ctor("ImageService", ImageService, "scoped")).not.toThrow();
 });

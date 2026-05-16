@@ -35,10 +35,10 @@ export interface ServiceContextBuilder<
 export class ServiceContextBuilderImpl<
     S extends Record<PropertyKey, unknown> = {},
 > implements ServiceContextBuilder<S> {
-    private readonly _impls: Map<PropertyKey, ServiceProviderWithArgKeys[]>;
+    private readonly _keys: Set<PropertyKey>;
 
     constructor() {
-        this._impls = new Map();
+        this._keys = new Set();
     }
 
     forKey<const K extends PropertyKey>(
@@ -52,15 +52,15 @@ export class ServiceContextBuilderImpl<
     } {
         return {
             useType: <const T>() => {
-                this._impls.set(key, []);
+                this._keys.add(key);
                 return this;
             },
         };
     }
 
     build(): ServiceContext<S> {
-        const keys = new Set(this._impls.keys());
-        return new ServiceContextImpl<S>(this._impls, keys);
+        const keys = new Set(this._keys);
+        return new ServiceContextImpl<S>(keys);
     }
 }
 
@@ -85,17 +85,10 @@ export type ServiceContextProviders<Context extends ServiceContext> =
 export class ServiceContextImpl<
     S extends Record<PropertyKey, unknown> = {},
 > implements ServiceContext<S> {
-    private readonly _impls: Map<PropertyKey, ServiceProviderWithArgKeys[]>;
     private readonly _keys: Set<PropertyKey>;
-    private readonly _deps: Map<ConstructorOrFactory, PropertyKey[]>;
 
-    constructor(
-        impls: Map<PropertyKey, ServiceProviderWithArgKeys[]>,
-        keys: Set<PropertyKey>,
-    ) {
-        this._impls = impls;
+    constructor(keys: Set<PropertyKey>) {
         this._keys = keys;
-        this._deps = new Map();
     }
 
     inject<
@@ -154,48 +147,3 @@ export type ServiceProviderWithArgKeys<
     readonly [ARGS]: Args;
     readonly [UNUSED_NAME_SERVICE]: true;
 };
-
-// interface TesticleInterface {
-//     test0: number;
-//     test1: string;
-// }
-
-// class Testicle implements TesticleInterface {
-//     test0: number;
-//     test1: string;
-//     constructor(test0: number, test1: string) {
-//         this.test0 = test0;
-//         this.test1 = test1;
-//     }
-// }
-
-// type Test = ServiceProviderWithArgKeys<
-//     typeof Testicle,
-//     {
-//         Service0Key: Testicle;
-//         Num0: number;
-//         Num1: number;
-//         String0: string;
-//     },
-//     ["Num0", "String0"]
-// >;
-
-// // const ctx = new ServiceContextImpl<{
-// //     Service0Key: typeof Testicle;
-// //     Num0: () => number;
-// //     Num1: () => number;
-// //     String0: () => string;
-// // }>(new Map(), new Set());
-
-// const ctx = new ServiceContextBuilderImpl()
-//     .forKey("Service0Key")
-//     .useType<TesticleInterface>()
-//     .forKey("Num0")
-//     .useType<number>()
-//     .forKey("Num1")
-//     .useType<number>()
-//     .forKey("String0")
-//     .useType<string>()
-//     .build();
-
-// const test = ctx.inject(Testicle, ["Num0", "String0"]);

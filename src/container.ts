@@ -2,7 +2,6 @@ import {
     ARGS,
     SERVICE_SCOPE_MAP,
     ServiceScopeKey,
-    ServiceScopeToken,
     SINGLETON,
     TRANSIENT,
 } from "./const";
@@ -17,18 +16,32 @@ import {
     DepsNotFoundError,
     ProviderTypeError,
     ServiceNotFoundError,
+    SingletonOverrideError,
 } from "./errors";
 import {
     Constructor,
     ConstructorOrFactory,
     ConstructorOrFactoryArgs,
     ConstructorOrFactoryMapToInstanceMap,
-    ConstructorOrFactoryReturn,
     Factory,
     KeyTupleForBroadenedValueTuple,
     MapToProperty,
     Prettify,
 } from "./global";
+
+type ServiceScopeKeys<
+    Services extends Record<PropertyKey, ContainerService>,
+    Scope extends ServiceScopeKey,
+> = {
+    [Key in keyof Services]: Services[Key] extends ContainerService<any, Scope>
+        ? Key
+        : never;
+}[keyof Services];
+
+type KeyIfNotExistingSingletonKey<
+    Services extends Record<PropertyKey, ContainerService>,
+    Key extends PropertyKey,
+> = Key extends ServiceScopeKeys<Services, "singleton"> ? never : Key;
 
 export interface ContainerService<
     Provider extends ServiceProviderWithArgKeys = ServiceProviderWithArgKeys,
@@ -63,7 +76,7 @@ export interface ServiceContainerBuilder<
             : never,
         const U extends ServiceScopeKey,
     >(
-        key: K,
+        key: KeyIfNotExistingSingletonKey<Services, K>,
         provider: P,
         scope: U,
     ): ServiceContainerBuilder<
@@ -91,7 +104,7 @@ export interface ServiceContainerBuilder<
             : never,
         const U extends ServiceScopeKey,
     >(
-        key: K,
+        key: KeyIfNotExistingSingletonKey<Services, K>,
         provider: P,
         scope: U,
     ): ServiceContainerBuilder<
@@ -109,9 +122,16 @@ export class ServiceContainerBuilderImpl<
     private readonly _context: Context;
     private readonly _impl: Record<PropertyKey, ContainerService>;
 
-    constructor(context: Context, impl: Services) {
+    private readonly _resolvers: Map<PropertyKey, () => unknown>;
+
+    constructor(
+        context: Context,
+        impl: Services,
+        resolvers: Map<PropertyKey, () => unknown> = new Map(),
+    ) {
         this._context = context;
         this._impl = impl;
+        this._resolvers = resolvers;
     }
 
     ctor<
@@ -134,15 +154,15 @@ export class ServiceContainerBuilderImpl<
             : never,
         const U extends ServiceScopeKey,
     >(
-        key: K,
+        key: KeyIfNotExistingSingletonKey<Services, K>,
         provider: P,
         scope: U,
     ): ServiceContainerBuilder<
         Context,
         Prettify<Omit<Services, K> & { [Key in K]: ContainerService<P, U> }>
     > {
-        if (this._impl[key]) {
-            console.log("overriding", key);
+        if (this._impl[key] && this._impl[key].scope === SINGLETON) {
+            throw new SingletonOverrideError(key);
         }
         this._impl[key] = {
             provider,
@@ -175,15 +195,15 @@ export class ServiceContainerBuilderImpl<
             : never,
         const U extends ServiceScopeKey,
     >(
-        key: K,
+        key: KeyIfNotExistingSingletonKey<Services, K>,
         provider: P,
         scope: U,
     ): ServiceContainerBuilder<
         Context,
         Prettify<Omit<Services, K> & { [Key in K]: ContainerService<P, U> }>
     > {
-        if (this._impl[key]) {
-            console.log("overriding", key);
+        if (this._impl[key] && this._impl[key].scope === SINGLETON) {
+            throw new SingletonOverrideError(key);
         }
         this._impl[key] = {
             provider,
@@ -197,7 +217,11 @@ export class ServiceContainerBuilderImpl<
     }
 
     build(): ServiceContainer<Context, Services> {
-        return new ServiceContainerImpl(this._context, this._impl as Services);
+        return new ServiceContainerImpl(
+            this._context,
+            this._impl as Services,
+            this._resolvers,
+        );
     }
 }
 
@@ -220,10 +244,14 @@ export class ServiceContainerImpl<
 
     private readonly _resolvers: Map<PropertyKey, () => unknown>;
 
-    constructor(context: Context, impl: Services) {
+    constructor(
+        context: Context,
+        impl: Services,
+        resolvers: Map<PropertyKey, () => unknown> = new Map(),
+    ) {
         this._context = context;
         this._impl = impl;
-        this._resolvers = new Map();
+        this._resolvers = resolvers;
     }
 
     resolve<const K extends keyof ServiceContextProviders<Context>>(
@@ -234,9 +262,17 @@ export class ServiceContainerImpl<
     }
 
     child(): ServiceContainerBuilder<Context, Services> {
+        const singletonResolvers = new Map<PropertyKey, () => unknown>();
+        for (const [key, val] of Object.entries(this._impl)) {
+            if (val.scope === SINGLETON) {
+                const resolver = this._ensureResolverCached(key as any);
+                singletonResolvers.set(key, resolver);
+            }
+        }
         const builder = new ServiceContainerBuilderImpl(
             this._context,
-            this._impl,
+            { ...this._impl },
+            singletonResolvers,
         );
         return builder;
     }
@@ -259,8 +295,6 @@ export class ServiceContainerImpl<
             ),
         );
         const resolveArgs = () => argResolvers.map((r) => r());
-
-        console.log(impl);
 
         let resolve: () => unknown;
         if (impl.factory) {
@@ -290,35 +324,3 @@ export class ServiceContainerImpl<
         return resolver;
     }
 }
-
-// interface TesticleInterface {
-//     test0: number;
-//     test1: string;
-// }
-
-// class Testicle {
-//     test0: number;
-//     test1: string;
-//     constructor(test0: number, test1: string) {
-//         this.test0 = test0;
-//         this.test1 = test1;
-//     }
-// }
-
-// type CtorMapTest = {
-//     Service0Key: TesticleInterface;
-//     Num0: number;
-//     Num1: number;
-//     String0: string;
-// };
-
-// const ctx = null as unknown as ServiceContext<CtorMapTest>;
-
-// const TesticleService = ctx.inject(Testicle, ["Num0", "String0"]);
-// const numService = ctx.inject(() => 1, []);
-// const strService = ctx.inject(() => "", []);
-
-// const test = (null as unknown as ServiceContainerBuilder<typeof ctx>)
-//     .factory("Num0", numService, "scoped")
-//     .factory("String0", strService, "singleton")
-//     .ctor("Service0Key", TesticleService, "transient");
