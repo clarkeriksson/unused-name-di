@@ -8,7 +8,6 @@ export const GlobalConfig = context.inject(
     class {
         apiKey: string = "keykeykey";
     },
-    [],
 );
 
 export interface NameService {
@@ -32,7 +31,6 @@ export const DateService = context.inject(
             return new Date();
         }
     },
-    [],
 );
 
 export interface ChatService {

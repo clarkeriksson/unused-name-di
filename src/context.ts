@@ -73,7 +73,7 @@ export interface ServiceContext<S extends Record<PropertyKey, unknown> = {}> {
         >,
     >(
         provider: C,
-        args: A,
+        ...args: ConstructorOrFactoryArgs<C> extends [] ? [args?: A] : [args: A]
     ): ServiceProviderWithArgKeys<C, S, A>;
 
     child(): ServiceContainerBuilder<this>;
@@ -104,9 +104,12 @@ export class ServiceContextImpl<
             S,
             ConstructorOrFactoryArgs<C>
         >,
-    >(provider: C, args: A): ServiceProviderWithArgKeys<C, S, A> {
+    >(
+        provider: C,
+        ...args: ConstructorOrFactoryArgs<C> extends [] ? [args?: A] : [args: A]
+    ): ServiceProviderWithArgKeys<C, S, A> {
         return Object.assign(provider, {
-            [ARGS]: args,
+            [ARGS]: (args[0] as A) ?? [],
             [UNUSED_NAME_SERVICE]: true as const,
         });
     }
