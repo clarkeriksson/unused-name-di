@@ -15,4 +15,4 @@ export type ServiceScopeToken = {
 export type ServiceScopeKey = keyof typeof SERVICE_SCOPE_MAP;
 
 export const ARGS = Symbol("args");
-export const UNUSED_NAME_SERVICE = Symbol("unusednameservice");
+export const UNUSED_NAME_SERVICE = Symbol("unused-name-service");

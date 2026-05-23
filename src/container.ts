@@ -4,6 +4,7 @@ import {
     ServiceScopeKey,
     SINGLETON,
     TRANSIENT,
+    UNUSED_NAME_SERVICE,
 } from "./const";
 import {
     ServiceConstructorWithArgKeys,
@@ -24,24 +25,11 @@ import {
     ConstructorOrFactoryArgs,
     ConstructorOrFactoryMapToInstanceMap,
     Factory,
+    KeyIfNotExistingSingletonKey,
     KeyTupleForBroadenedValueTuple,
     MapToProperty,
     Prettify,
 } from "./global";
-
-type ServiceScopeKeys<
-    Services extends Record<PropertyKey, ContainerService>,
-    Scope extends ServiceScopeKey,
-> = {
-    [Key in keyof Services]: Services[Key] extends ContainerService<any, Scope>
-        ? Key
-        : never;
-}[keyof Services];
-
-type KeyIfNotExistingSingletonKey<
-    Services extends Record<PropertyKey, ContainerService>,
-    Key extends PropertyKey,
-> = Key extends ServiceScopeKeys<Services, "singleton"> ? never : Key;
 
 export interface ContainerService<
     Provider extends ServiceProviderWithArgKeys = ServiceProviderWithArgKeys,
@@ -81,7 +69,7 @@ export interface ServiceContainerBuilder<
         scope: U,
     ): ServiceContainerBuilder<
         Context,
-        Prettify<Omit<Services, K> & { [Key in K]: ContainerService<P, U> }>
+        Omit<Services, K> & { [Key in K]: ContainerService<P, U> }
     >;
 
     factory<
@@ -109,10 +97,30 @@ export interface ServiceContainerBuilder<
         scope: U,
     ): ServiceContainerBuilder<
         Context,
-        Prettify<Omit<Services, K> & { [Key in K]: ContainerService<P, U> }>
+        Omit<Services, K> & { [Key in K]: ContainerService<P, U> }
     >;
 
-    build(): ServiceContainer<Context, Services>;
+    instance<
+        const K extends Context extends ServiceContext<infer Providers>
+            ? keyof Providers
+            : never,
+        const I,
+        const U extends ServiceScopeKey,
+    >(
+        key: KeyIfNotExistingSingletonKey<Services, K>,
+        instance: I,
+        scope: U,
+    ): ServiceContainerBuilder<
+        Context,
+        Omit<Services, K> & {
+            [Key in K]: ContainerService<
+                (() => I) & { [ARGS]: []; [UNUSED_NAME_SERVICE]: true },
+                U
+            >;
+        }
+    >;
+
+    build(): ServiceContainer<Context, Prettify<Services>>;
 }
 
 export class ServiceContainerBuilderImpl<
@@ -159,7 +167,7 @@ export class ServiceContainerBuilderImpl<
         scope: U,
     ): ServiceContainerBuilder<
         Context,
-        Prettify<Omit<Services, K> & { [Key in K]: ContainerService<P, U> }>
+        Omit<Services, K> & { [Key in K]: ContainerService<P, U> }
     > {
         if (this._impl[key] && this._impl[key].scope === SINGLETON) {
             throw new SingletonOverrideError(key);
@@ -171,7 +179,7 @@ export class ServiceContainerBuilderImpl<
         };
         return this as ServiceContainerBuilder<
             Context,
-            Prettify<Omit<Services, K> & { [Key in K]: ContainerService<P, U> }>
+            Omit<Services, K> & { [Key in K]: ContainerService<P, U> }
         >;
     }
 
@@ -200,7 +208,7 @@ export class ServiceContainerBuilderImpl<
         scope: U,
     ): ServiceContainerBuilder<
         Context,
-        Prettify<Omit<Services, K> & { [Key in K]: ContainerService<P, U> }>
+        Omit<Services, K> & { [Key in K]: ContainerService<P, U> }
     > {
         if (this._impl[key] && this._impl[key].scope === SINGLETON) {
             throw new SingletonOverrideError(key);
@@ -212,11 +220,52 @@ export class ServiceContainerBuilderImpl<
         };
         return this as ServiceContainerBuilder<
             Context,
-            Prettify<Omit<Services, K> & { [Key in K]: ContainerService<P, U> }>
+            Omit<Services, K> & { [Key in K]: ContainerService<P, U> }
         >;
     }
 
-    build(): ServiceContainer<Context, Services> {
+    instance<
+        const K extends Context extends ServiceContext<infer Providers>
+            ? keyof Providers
+            : never,
+        const I,
+        const U extends ServiceScopeKey,
+    >(
+        key: KeyIfNotExistingSingletonKey<Services, K>,
+        instance: I,
+        scope: U,
+    ): ServiceContainerBuilder<
+        Context,
+        Omit<Services, K> & {
+            [Key in K]: ContainerService<
+                (() => I) & { [ARGS]: []; [UNUSED_NAME_SERVICE]: true },
+                U
+            >;
+        }
+    > {
+        if (this._impl[key] && this._impl[key].scope === SINGLETON) {
+            throw new SingletonOverrideError(key);
+        }
+        this._impl[key] = {
+            provider: Object.assign(() => instance, {
+                [ARGS]: [],
+                [UNUSED_NAME_SERVICE]: true,
+            }) as any,
+            scope: SERVICE_SCOPE_MAP[scope],
+            factory: true,
+        };
+        return this as ServiceContainerBuilder<
+            Context,
+            Omit<Services, K> & {
+                [Key in K]: ContainerService<
+                    (() => I) & { [ARGS]: []; [UNUSED_NAME_SERVICE]: true },
+                    U
+                >;
+            }
+        >;
+    }
+
+    build(): ServiceContainer<Context, Prettify<Services>> {
         return new ServiceContainerImpl(
             this._context,
             this._impl as Services,

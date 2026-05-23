@@ -1,4 +1,5 @@
 import { UnusedName } from "../src";
+import { ServiceContext } from "../src/context";
 import {
     ChatService,
     DateService,
@@ -9,17 +10,31 @@ import {
     VideoService,
 } from "./setup";
 
-// prettier-ignore
 export const context = UnusedName.context()
-    .forKey("DateService").useType<DateService>()
-    .forKey("AppId").useType<string>()
-    .forKey("TestPrimitive").useType<symbol>()
-    .forKey("GlobalConfig").useType<GlobalConfig>()
-    .forKey("NameService").useType<NameService>()
-    .forKey("ChatService").useType<ChatService>()
-    .forKey("ImageService").useType<ImageService>()
-    .forKey("VideoService").useType<VideoService>()
-    .forKey("FileService0").useType<FileService>()
-    .forKey("FileService1").useType<FileService>()
-    .forKey("PixelWidth").useType<number>()
+    .useKeys(
+        "DateService",
+        "AppId",
+        "TestPrimitive",
+        "GlobalConfig",
+        "NameService",
+        "ChatService",
+        "ImageService",
+        "VideoService",
+        "FileService0",
+        "FileService1",
+        "PixelWidth",
+    )
+    .withTypeMap<{
+        DateService: DateService;
+        AppId: string;
+        TestPrimitive: symbol;
+        GlobalConfig: GlobalConfig;
+        NameService: NameService;
+        ChatService: ChatService;
+        ImageService: ImageService;
+        VideoService: VideoService;
+        FileService0: FileService;
+        FileService1: FileService;
+        PixelWidth: number;
+    }>()
     .build();

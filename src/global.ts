@@ -1,3 +1,6 @@
+import { ServiceScopeKey } from "./const";
+import { ContainerService } from "./container";
+
 export declare type Prettify<T> = { [K in keyof T]: T[K] } & {};
 
 export declare type BroadenPrimitiveConst<T> = T extends string
@@ -66,3 +69,27 @@ export declare type KeyTupleForBroadenedValueTuple<
 export declare type MapToProperty<T, K extends keyof T[keyof T]> = {
     [Key in keyof T]: T[Key][K];
 };
+
+export declare type ServiceScopeKeys<
+    Services extends Record<PropertyKey, ContainerService>,
+    Scope extends ServiceScopeKey,
+> = {
+    [Key in keyof Services]: Services[Key] extends ContainerService<any, Scope>
+        ? Key
+        : never;
+}[keyof Services];
+
+export declare type KeyIfNotExistingSingletonKey<
+    Services extends Record<PropertyKey, ContainerService>,
+    Key extends PropertyKey,
+> = Key extends ServiceScopeKeys<Services, "singleton"> ? never : Key;
+
+export declare type NewKey<
+    K extends PropertyKey,
+    Services extends Record<PropertyKey, unknown>,
+> = K extends keyof Services ? never : K;
+
+export declare type KeyIfNotExistingKey<
+    Services extends Record<PropertyKey, unknown>,
+    Key extends PropertyKey,
+> = Key extends keyof Services ? never : Key;

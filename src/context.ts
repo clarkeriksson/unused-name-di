@@ -11,22 +11,28 @@ import {
     Factory,
     FactoryArgs,
     KeyTupleForBroadenedValueTuple,
-    Prettify,
+    NewKey,
 } from "./global";
 
 export interface ServiceContextBuilder<
     S extends Record<PropertyKey, unknown> = {},
 > {
     forKey<const K extends PropertyKey>(
-        key: K,
+        key: NewKey<K, S>,
     ): {
         useType: <const T>() => ServiceContextBuilder<
-            Prettify<
-                Omit<S, K> & {
-                    [Key in K]: T;
-                }
-            >
+            S & {
+                [Key in K]: T;
+            }
         >;
+    };
+
+    useKeys<const K extends readonly PropertyKey[]>(
+        ...keys: K
+    ): {
+        withTypeMap: <
+            const M extends { [Key in K[number]]: unknown },
+        >() => ServiceContextBuilder<M>;
     };
 
     build(): ServiceContext<S>;
@@ -35,17 +41,17 @@ export interface ServiceContextBuilder<
 export class ServiceContextBuilderImpl<
     S extends Record<PropertyKey, unknown> = {},
 > implements ServiceContextBuilder<S> {
-    private readonly _keys: Set<PropertyKey>;
+    _keys: Set<PropertyKey>;
 
     constructor() {
         this._keys = new Set();
     }
 
     forKey<const K extends PropertyKey>(
-        key: K,
+        key: NewKey<K, S>,
     ): {
         useType: <const T>() => ServiceContextBuilder<
-            Omit<S, K> & {
+            S & {
                 [Key in K]: T;
             }
         >;
@@ -53,7 +59,30 @@ export class ServiceContextBuilderImpl<
         return {
             useType: <const T>() => {
                 this._keys.add(key);
-                return this;
+                return this as ServiceContextBuilder<
+                    S & {
+                        [Key in K]: T;
+                    }
+                >;
+            },
+        };
+    }
+
+    useKeys<const K extends readonly PropertyKey[]>(
+        ...keys: K
+    ): {
+        withTypeMap: <
+            const M extends { [Key in K[number]]: unknown },
+        >() => ServiceContextBuilder<M>;
+    } {
+        return {
+            withTypeMap: <
+                const M extends { [Key in K[number]]: unknown },
+            >() => {
+                for (const key of keys) {
+                    this._keys.add(key);
+                }
+                return this as ServiceContextBuilder<M>;
             },
         };
     }
@@ -85,7 +114,7 @@ export type ServiceContextProviders<Context extends ServiceContext> =
 export class ServiceContextImpl<
     S extends Record<PropertyKey, unknown> = {},
 > implements ServiceContext<S> {
-    private readonly _keys: Set<PropertyKey>;
+    _keys: Set<PropertyKey>;
 
     constructor(keys: Set<PropertyKey>) {
         this._keys = keys;

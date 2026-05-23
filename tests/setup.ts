@@ -1,5 +1,4 @@
 import { context } from "./context";
-
 export interface GlobalConfig {
     apiKey: string;
 }
