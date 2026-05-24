@@ -4,7 +4,7 @@ export interface GlobalConfig {
 }
 
 export const GlobalConfig = context.inject(
-    class {
+    class implements GlobalConfig {
         apiKey: string = "keykeykey";
     },
 );
@@ -25,7 +25,7 @@ export interface DateService {
 }
 
 export const DateService = context.inject(
-    class {
+    class implements DateService {
         scopeDate() {
             return new Date();
         }
@@ -39,7 +39,7 @@ export interface ChatService {
 }
 
 export const ChatService = context.inject(
-    class {
+    class implements ChatService {
         readonly date: DateService;
         readonly file: FileService;
         readonly pxWidth: number;
@@ -58,7 +58,7 @@ export interface ImageService {
 }
 
 export const ImageService = context.inject(
-    class {
+    class implements ImageService {
         readonly pxWidth: number;
         readonly video: VideoService;
         constructor(pxWidth: number, video: VideoService) {
@@ -74,7 +74,7 @@ export interface VideoService {
 }
 
 export const VideoService = context.inject(
-    class {
+    class implements VideoService {
         readonly date: DateService;
         constructor(date: DateService) {
             this.date = date;
@@ -90,7 +90,7 @@ export interface FileService {
 }
 
 export const FileService0 = context.inject(
-    class {
+    class implements FileService {
         readonly date: DateService;
         readonly image: ImageService;
         readonly video: VideoService;
@@ -108,7 +108,7 @@ export const FileService0 = context.inject(
 );
 
 export const FileService1 = context.inject(
-    class {
+    class implements FileService {
         readonly date: DateService;
         readonly image: ImageService;
         readonly video: VideoService;
@@ -126,7 +126,7 @@ export const FileService1 = context.inject(
 );
 
 export const ImageServiceNew = context.inject(
-    class {
+    class implements ImageService {
         readonly pxWidth: number;
         readonly video: VideoService;
         constructor(pxWidth: number, video: VideoService) {

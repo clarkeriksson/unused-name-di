@@ -115,9 +115,11 @@ export class ServiceContextImpl<
     S extends Record<PropertyKey, unknown> = {},
 > implements ServiceContext<S> {
     _keys: Set<PropertyKey>;
+    _args: Map<ConstructorOrFactory, PropertyKey[]>;
 
     constructor(keys: Set<PropertyKey>) {
         this._keys = keys;
+        this._args = new Map();
     }
 
     inject<
@@ -130,8 +132,10 @@ export class ServiceContextImpl<
         provider: C,
         ...args: ConstructorOrFactoryArgs<C> extends [] ? [args?: A] : [args: A]
     ): ServiceProviderWithArgKeys<C, S, A> {
+        const argArr = (args[0] as A) ?? [];
+        this._args.set(provider, argArr);
         return Object.assign(provider, {
-            [ARGS]: (args[0] as A) ?? [],
+            [ARGS]: argArr,
             [UNUSED_NAME_SERVICE]: true as const,
         });
     }
