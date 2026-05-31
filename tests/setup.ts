@@ -1,31 +1,34 @@
-import { injector } from "./injector.js";
-import { DI } from "./container.js";
-
-export class GlobalConfig {
-    apiKey: string = "keykeykey";
+import { context } from "./context";
+export interface GlobalConfig {
+    apiKey: string;
 }
+
+export const GlobalConfig = {
+    apiKey: "keykeykey",
+};
 
 export interface NameService {
     chat: ChatService;
 }
 
-injector.inject(NameServiceFactory)("ChatService");
-export function NameServiceFactory(chat: ChatService): NameService {
-    return {
-        chat,
-    };
-}
+export const NameServiceFactory = context.inject(
+    (chat: ChatService): NameService => {
+        return { chat };
+    },
+    ["ChatService"],
+);
 
 export interface DateService {
     scopeDate(): Date;
 }
 
-export class DateServiceImpl implements DateService {
+class DateServiceImpl implements DateService {
     scopeDate() {
         return new Date();
     }
 }
-injector.inject(DateServiceImpl)();
+
+export const DateService = context.inject(DateServiceImpl);
 
 export interface ChatService {
     readonly date: DateService;
@@ -33,13 +36,10 @@ export interface ChatService {
     readonly pxWidth: number;
 }
 
-export class ChatServiceImpl implements ChatService {
+class ChatServiceImpl implements ChatService {
     readonly date: DateService;
     readonly file: FileService;
     readonly pxWidth: number;
-    static {
-        injector.inject(this)("DateService", "FileService1", "PixelWidth");
-    }
     constructor(date: DateService, file: FileService, pixelWidth: number) {
         this.date = date;
         this.file = file;
@@ -47,12 +47,18 @@ export class ChatServiceImpl implements ChatService {
     }
 }
 
+export const ChatService = context.inject(ChatServiceImpl, [
+    "DateService",
+    "FileService1",
+    "PixelWidth",
+]);
+
 export interface ImageService {
     readonly pxWidth: number;
     readonly video: VideoService;
 }
 
-export class ImageServiceImpl implements ImageService {
+class ImageServiceImpl implements ImageService {
     readonly pxWidth: number;
     readonly video: VideoService;
     constructor(pxWidth: number, video: VideoService) {
@@ -60,20 +66,24 @@ export class ImageServiceImpl implements ImageService {
         this.video = video;
     }
 }
-injector.dec.inject("PixelWidth", "VideoService")(ImageServiceImpl);
-//injector.inject(ImageServiceImpl)("PixelWidth", "VideoService");
+
+export const ImageService = context.inject(ImageServiceImpl, [
+    "PixelWidth",
+    "VideoService",
+]);
 
 export interface VideoService {
     readonly date: DateService;
 }
 
-export class VideoServiceImpl implements VideoService {
+class VideoServiceImpl implements VideoService {
     readonly date: DateService;
     constructor(date: DateService) {
         this.date = date;
     }
 }
-injector.inject(VideoServiceImpl)("DateService");
+
+export const VideoService = context.inject(VideoServiceImpl, ["DateService"]);
 
 export interface FileService {
     readonly date: DateService;
@@ -81,7 +91,7 @@ export interface FileService {
     readonly video: VideoService;
 }
 
-export class FileServiceImpl implements FileService {
+class FileService0Impl implements FileService {
     readonly date: DateService;
     readonly image: ImageService;
     readonly video: VideoService;
@@ -91,32 +101,40 @@ export class FileServiceImpl implements FileService {
         this.video = video;
     }
 }
-injector.inject(FileServiceImpl)("ImageService", "VideoService", "DateService");
 
-export class FileServiceImpl2 implements FileService {
-    readonly date: DateService;
-    readonly image: ImageService;
-    readonly video: VideoService;
-    constructor(image: ImageService, video: VideoService, date: DateService) {
-        this.date = date;
-        this.image = image;
-        this.video = video;
-    }
-}
-injector.inject(FileServiceImpl2)(
+export const FileService0 = context.inject(FileService0Impl, [
     "ImageService",
     "VideoService",
     "DateService",
-);
+]);
 
-export class ImageServiceNewImpl implements ImageService {
+class FileService1Impl implements FileService {
+    readonly date: DateService;
+    readonly image: ImageService;
+    readonly video: VideoService;
+    constructor(image: ImageService, video: VideoService, date: DateService) {
+        this.date = date;
+        this.image = image;
+        this.video = video;
+    }
+}
+
+export const FileService1 = context.inject(FileService1Impl, [
+    "ImageService",
+    "VideoService",
+    "DateService",
+]);
+
+class ImageServiceNewImpl implements ImageService {
     readonly pxWidth: number;
     readonly video: VideoService;
-    static {
-        injector.inject(this)("PixelWidth", "VideoService");
-    }
     constructor(pxWidth: number, video: VideoService) {
         this.pxWidth = pxWidth;
         this.video = video;
     }
 }
+
+export const ImageServiceNew = context.inject(ImageServiceNewImpl, [
+    "PixelWidth",
+    "VideoService",
+]);

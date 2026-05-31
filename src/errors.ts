@@ -1,39 +1,60 @@
-export class ServiceRegistrationError extends Error {
-    constructor(message: string) {
-        super(message);
-        this.name = "ServiceRegistrationError";
-        if ("captureStackTrace" in Error && typeof Error.captureStackTrace === "function") {
-            Error.captureStackTrace(this, ServiceRegistrationError);
+export class ProviderTypeError extends Error {
+    constructor(
+        key: PropertyKey,
+        expected: "class" | "factory",
+        options?: ErrorOptions,
+    ) {
+        super(
+            `could not locate a service with key '${String(key)}' and provider type ${expected}`,
+            options,
+        );
+        if (
+            "captureStackTrace" in Error &&
+            typeof Error["captureStackTrace"] === "function"
+        ) {
+            Error.captureStackTrace(this, ProviderTypeError);
         }
     }
 }
 
-export class ServiceResolutionError extends Error {
-    constructor(message: string) {
-        super(message);
-        this.name = "ServiceResolutionError";
-        if ("captureStackTrace" in Error && typeof Error.captureStackTrace === "function") {
-            Error.captureStackTrace(this, ServiceRegistrationError);
+export class DepsNotFoundError extends Error {
+    constructor(key: PropertyKey, options?: ErrorOptions) {
+        super(
+            `could not find the dependencies of the service with key '${String(key)}'`,
+            options,
+        );
+        if (
+            "captureStackTrace" in Error &&
+            typeof Error["captureStackTrace"] === "function"
+        ) {
+            Error.captureStackTrace(this, DepsNotFoundError);
         }
     }
 }
 
-export class InjectionError extends Error {
-    constructor(message: string) {
-        super(message);
-        this.name = "InjectionError";
-        if ("captureStackTrace" in Error && typeof Error.captureStackTrace === "function") {
-            Error.captureStackTrace(this, InjectionError);
+export class ServiceNotFoundError extends Error {
+    constructor(key: PropertyKey, options?: ErrorOptions) {
+        super(`could not locate a service with key '${String(key)}'`, options);
+        if (
+            "captureStackTrace" in Error &&
+            typeof Error["captureStackTrace"] === "function"
+        ) {
+            Error.captureStackTrace(this, ServiceNotFoundError);
         }
     }
 }
 
-export class ContainerDisposedError extends Error {
-    constructor(message: string) {
-        super(message);
-        this.name = "ContainerDisposedError";
-        if ("captureStackTrace" in Error && typeof Error.captureStackTrace === "function") {
-            Error.captureStackTrace(this, ContainerDisposedError);
+export class SingletonOverrideError extends Error {
+    constructor(key: PropertyKey, options?: ErrorOptions) {
+        super(
+            `attempted to override a singleton service with key '${String(key)}'`,
+            options,
+        );
+        if (
+            "captureStackTrace" in Error &&
+            typeof Error["captureStackTrace"] === "function"
+        ) {
+            Error.captureStackTrace(this, SingletonOverrideError);
         }
     }
 }
