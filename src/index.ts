@@ -1,22 +1,11 @@
-import {
-    InjectionContainer,
-    InjectionContainerBuilder,
-    InjectionContainerBuilderImpl,
-    AsyncInjectionContainerBuilder,
-    AsyncInjectionContainerBuilderImpl,
-} from "./container.js";
+import { ServiceContextBuilder, ServiceContextBuilderImpl } from "./context";
 
-function builder(): InjectionContainerBuilder {
-    return new InjectionContainerBuilderImpl();
-}
-
-function asyncBuilder(): AsyncInjectionContainerBuilder {
-    return new AsyncInjectionContainerBuilderImpl();
+function context(): ServiceContextBuilder {
+    return new ServiceContextBuilderImpl();
 }
 
 const UnusedName = {
-    builder,
-    asyncBuilder,
-} as const;
+    context,
+};
 
-export { UnusedName, type InjectionContainer };
+export { UnusedName };

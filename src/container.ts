@@ -1,574 +1,335 @@
-import { ContainerDisposedError } from "./errors.js";
 import {
-    RAW_PROVIDER,
-    ServiceInfoImpl,
-    ServiceScope,
-    type ServiceArgs,
-    type ServiceInfo,
-    type ServiceInstance,
-    type ServiceProvider,
-} from "./service.js";
+    ARGS,
+    SERVICE_SCOPE_MAP,
+    ServiceScopeKey,
+    SINGLETON,
+    TRANSIENT,
+    UNUSED_NAME_SERVICE,
+} from "./const";
+import {
+    ServiceConstructorWithArgKeys,
+    ServiceContext,
+    ServiceFactoryWithArgKeys,
+    ServiceProviderWithArgKeys,
+} from "./context";
+import {
+    DepsNotFoundError,
+    ProviderTypeError,
+    ServiceNotFoundError,
+    SingletonOverrideError,
+} from "./errors";
+import {
+    Constructor,
+    ConstructorOrFactory,
+    ConstructorOrFactoryArgs,
+    ConstructorOrFactoryMapToInstanceMap,
+    Factory,
+    KeyIfNotExistingSingletonKey,
+    KeyTupleForBroadenedValueTuple,
+    MapToProperty,
+    Prettify,
+    ServiceInstance,
+} from "./global";
 
-/**
- * Utility type to simplify and expand certain object type previews.
- */
-type Prettify<T> = { [K in keyof T]: T[K] } & {};
+export interface ContainerService<
+    Provider extends ServiceProviderWithArgKeys = ServiceProviderWithArgKeys,
+    Scope extends ServiceScopeKey = ServiceScopeKey,
+> {
+    readonly provider: Provider;
+    readonly scope: (typeof SERVICE_SCOPE_MAP)[Scope];
+    readonly factory: boolean;
+}
 
-/**
- * Type returning the broad primitive type for primitive const type inputs, otherwise the type passes through.
- */
-type Broaden<T> = T extends string
-    ? string
-    : T extends number
-      ? number
-      : T extends boolean
-        ? boolean
-        : T extends symbol
-          ? symbol
-          : T extends bigint
-            ? bigint
-            : T;
-
-/**
- * Tuple type of service keys corresponding to services matching the provided tuple of values.
- */
-export type KeysForValues<
-    T extends Record<PropertyKey, ServiceInfo>,
-    Values extends readonly any[],
-> = {
-    [Index in keyof Values]: {
-        [Key in keyof T]: Broaden<
-            ServiceInstance<T[Key]["factory"]>
-        > extends Values[Index]
-            ? Key
-            : never;
-    }[keyof T];
-};
-
-/**
- * Returns a tuple type of all keys in the given services record type that match the given service scope.
- */
-type ServiceScopeKeys<
-    Services extends Record<PropertyKey, ServiceInfo>,
-    Scope extends ServiceScope,
-> = {
-    [Key in keyof Services]: Services[Key] extends ServiceInfo<Scope>
-        ? Key
-        : never;
-}[keyof Services];
-
-/**
- * Returns never if the provided key is already associated with a service info type with scope 'singleton', otherwise
- * returns the key.
- */
-type KeyIfNotExistingSingletonKey<
-    Services extends Record<PropertyKey, ServiceInfo>,
-    Key extends PropertyKey,
-> = Key extends ServiceScopeKeys<Services, "singleton"> ? never : Key;
-
-/**
- * Object returned from registration methods to specify a service and optionally a type for that service.
- */
-type RegistrationHandler<
-    Services extends Record<PropertyKey, ServiceInfo>,
-    Key extends PropertyKey,
-    Scope extends ServiceScope,
-> = {
-    /**
-     * Registers the service provider and associated service given by the provided getter function. Returns an updated
-     * {@link InjectionContainerBuilder} to continue registration. The optional generic type parameter can be used to
-     * register the service implementation under the given interface.
-     *
-     * @param lazy A getter function returning a service provider for the service being registered.
-     */
-    use<
-        Service extends Key extends keyof Services
-            ? ServiceInstance<Services[Key]["factory"]>
-            : unknown,
+export interface ServiceContainerBuilder<
+    Services extends Record<PropertyKey, ServiceInstance>,
+    ContainerServices extends Record<PropertyKey, ContainerService> = {},
+> {
+    ctor<
+        const K extends keyof Services,
+        const P extends ServiceConstructorWithArgKeys<
+            Constructor<Services[K]>,
+            MapToProperty<ContainerServices, "provider">,
+            KeyTupleForBroadenedValueTuple<
+                ConstructorOrFactoryMapToInstanceMap<
+                    MapToProperty<ContainerServices, "provider">
+                >,
+                ConstructorOrFactoryArgs<ConstructorOrFactory<Services[K]>>
+            >
+        >,
+        const U extends ServiceScopeKey,
     >(
-        lazy: () => ServiceProvider<Service>,
-    ): InjectionContainerBuilder<
-        Prettify<
-            Omit<Services, Key> & {
-                [K in Key]: ServiceInfo<
-                    Scope,
-                    Key extends keyof Services
-                        ? ServiceInstance<Services[Key]["factory"]>
-                        : Service
-                >;
-            }
-        >
+        key: KeyIfNotExistingSingletonKey<ContainerServices, K>,
+        provider: P,
+        scope: U,
+    ): ServiceContainerBuilder<
+        Services,
+        Omit<ContainerServices, K> & { [Key in K]: ContainerService<P, U> }
     >;
-};
 
-type AsyncRegistrationHandler<
-    Services extends Record<PropertyKey, ServiceInfo>,
-    Key extends PropertyKey,
-    Scope extends ServiceScope,
-> = {
-    use<
-        Service extends Key extends keyof Services
-            ? ServiceInstance<Services[Key]["factory"]>
-            : unknown,
+    factory<
+        const K extends keyof Services,
+        const P extends ServiceFactoryWithArgKeys<
+            Factory<Services[K]>,
+            MapToProperty<ContainerServices, "provider">,
+            KeyTupleForBroadenedValueTuple<
+                ConstructorOrFactoryMapToInstanceMap<
+                    MapToProperty<ContainerServices, "provider">
+                >,
+                ConstructorOrFactoryArgs<ConstructorOrFactory<Services[K]>>
+            >
+        >,
+        const U extends ServiceScopeKey,
     >(
-        lazyPromise:
-            | (() => ServiceProvider<Service>)
-            | Promise<() => ServiceProvider<Service>>,
-    ): AsyncInjectionContainerBuilder<
-        Prettify<
-            Omit<Services, Key> & {
-                [K in Key]: ServiceInfo<
-                    Scope,
-                    Key extends keyof Services
-                        ? ServiceInstance<Services[Key]["factory"]>
-                        : Service
-                >;
-            }
-        >
+        key: KeyIfNotExistingSingletonKey<ContainerServices, K>,
+        provider: P,
+        scope: U,
+    ): ServiceContainerBuilder<
+        Services,
+        Omit<ContainerServices, K> & { [Key in K]: ContainerService<P, U> }
     >;
-};
 
-export interface AsyncInjectionContainerBuilder<
-    Services extends Record<PropertyKey, ServiceInfo> = {},
-> {
-    /**
-     * **Singleton services resolve to the same instance for all child containers of the defining container.**
-     *
-     * Begins the registration of a singleton service assigned to the given key.
-     *
-     * _WARNING: Since singleton services are the same across child containers, it is important to recognize that any
-     * non-singleton dependencies of this service will be derived from the container it is registered in. Because of
-     * this it is recommended to only have singleton dependencies, but not strictly prohibited by this library._
-     *
-     * @param key The key to assign the service to.
-     * @returns A {@link RegistrationHandler} object with the {@link RegistrationHandler.use use} method to complete
-     * registration.
-     */
-    singleton<Key extends PropertyKey>(
-        key: KeyIfNotExistingSingletonKey<Services, Key>,
-    ): AsyncRegistrationHandler<Services, Key, "singleton">;
+    instance<
+        const K extends keyof Services,
+        const I extends Services[K],
+        const U extends ServiceScopeKey,
+    >(
+        key: KeyIfNotExistingSingletonKey<ContainerServices, K>,
+        instance: I,
+        scope: U,
+    ): ServiceContainerBuilder<
+        Services,
+        Omit<ContainerServices, K> & {
+            [Key in K]: ContainerService<(() => I) & { [ARGS]: [] }, U>;
+        }
+    >;
 
-    /**
-     * **Scoped services resolve to the same instance within a container.**
-     *
-     * Begins the registration of a scoped service assigned to the given key.
-     *
-     * @param key The key to assign the service to.
-     * @returns An object containing the 'use' method to complete registration of the service.
-     */
-    scoped<Key extends PropertyKey>(
-        key: KeyIfNotExistingSingletonKey<Services, Key>,
-    ): AsyncRegistrationHandler<Services, Key, "scoped">;
-
-    /**
-     * **Transient services always resolve to a new instance.**
-     *
-     * Begins the registration of a transient service assigned to the given key.
-     *
-     * @param key The key to assign the service to.
-     * @returns An object containing the 'use' method to complete registration of the service.
-     */
-    transient<Key extends PropertyKey>(
-        key: KeyIfNotExistingSingletonKey<Services, Key>,
-    ): AsyncRegistrationHandler<Services, Key, "transient">;
-
-    /**
-     * Constructs a container object from this builder.
-     */
-    build(): Promise<InjectionContainer<Services>>;
+    build(): ServiceContainer<Services, Prettify<ContainerServices>>;
 }
 
-export class AsyncInjectionContainerBuilderImpl<
-    Services extends Record<PropertyKey, ServiceInfo> = {},
-> implements AsyncInjectionContainerBuilder<Services> {
-    #disposed: boolean = false;
+export class ServiceContainerBuilderImpl<
+    Services extends Record<PropertyKey, ServiceInstance>,
+    ContainerServices extends Record<PropertyKey, ContainerService> = {},
+> implements ServiceContainerBuilder<Services, ContainerServices> {
+    private readonly _context: ServiceContext<Services>;
+    private readonly _impl: Record<PropertyKey, ContainerService>;
 
-    #regPromises: Promise<void>[] = [];
+    private readonly _resolvers: Map<PropertyKey, () => unknown>;
 
-    _serviceInfo: Record<PropertyKey, ServiceInfoImpl> = {};
-    _implToDeps: Map<ServiceProvider, PropertyKey[]> = new Map();
-    _resolverCache: Map<PropertyKey, () => any> = new Map();
-
-    private _register<Key extends PropertyKey, Scope extends ServiceScope>(
-        key: KeyIfNotExistingSingletonKey<Services, Key>,
-        scope: Scope,
-    ): AsyncRegistrationHandler<Services, Key, Scope> {
-        if (
-            key in this._serviceInfo &&
-            this._serviceInfo[key].scope === "singleton"
-        )
-            throw Error(
-                `Attempted to override the singleton service ${String(key)}`,
-            );
-        return {
-            use: <Service>(
-                lazyPromise:
-                    | (() => ServiceProvider<Service>)
-                    | Promise<() => ServiceProvider<Service>>,
-            ): AsyncInjectionContainerBuilder<
-                Prettify<
-                    Omit<Services, Key> & {
-                        [K in Key]: ServiceInfo<Scope, Service>;
-                    }
-                >
-            > => {
-                this.#regPromises.push(
-                    new Promise<void>(async (resolve) => {
-                        const awaited = await lazyPromise;
-                        if (key in this._serviceInfo)
-                            this._resolverCache.delete(key);
-                        this._serviceInfo[key] = new ServiceInfoImpl(
-                            scope,
-                            awaited,
-                        );
-                        resolve();
-                    }),
-                );
-                return this as any;
-            },
-        };
-    }
-
-    singleton<Key extends PropertyKey>(
-        key: KeyIfNotExistingSingletonKey<Services, Key>,
+    constructor(
+        context: ServiceContext<Services>,
+        impl: ContainerServices,
+        resolvers: Map<PropertyKey, () => unknown> = new Map(),
     ) {
-        return this._register(key, "singleton");
+        this._context = context;
+        this._impl = impl;
+        this._resolvers = resolvers;
     }
 
-    scoped<Key extends PropertyKey>(
-        key: KeyIfNotExistingSingletonKey<Services, Key>,
-    ) {
-        return this._register(key, "scoped");
-    }
-
-    transient<Key extends PropertyKey>(
-        key: KeyIfNotExistingSingletonKey<Services, Key>,
-    ) {
-        return this._register(key, "transient");
-    }
-
-    async build(): Promise<InjectionContainer<Services>> {
-        const result = Promise.all(this.#regPromises).then(() => {
-            const result = new InjectionContainerImpl();
-            result._serviceInfo = this._serviceInfo;
-            result._implToDeps = this._implToDeps;
-            result._resolverCache = this._resolverCache;
-            return result as unknown as InjectionContainer<Services>;
-        });
-
-        return result;
-    }
-}
-
-export interface InjectionContainerBuilder<
-    Services extends Record<PropertyKey, ServiceInfo> = {},
-> {
-    /**
-     * **Singleton services resolve to the same instance for all child containers of the defining container.**
-     *
-     * Begins the registration of a singleton service assigned to the given key.
-     *
-     * _WARNING: Since singleton services are the same across child containers, it is important to recognize that any
-     * non-singleton dependencies of this service will be derived from the container it is registered in. Because of
-     * this it is recommended to only have singleton dependencies, but not strictly prohibited by this library._
-     *
-     * @param key The key to assign the service to.
-     * @returns A {@link RegistrationHandler} object with the {@link RegistrationHandler.use use} method to complete
-     * registration.
-     */
-    singleton<Key extends PropertyKey>(
-        key: KeyIfNotExistingSingletonKey<Services, Key>,
-    ): RegistrationHandler<Services, Key, "singleton">;
-
-    /**
-     * **Scoped services resolve to the same instance within a container.**
-     *
-     * Begins the registration of a scoped service assigned to the given key.
-     *
-     * @param key The key to assign the service to.
-     * @returns An object containing the 'use' method to complete registration of the service.
-     */
-    scoped<Key extends PropertyKey>(
-        key: KeyIfNotExistingSingletonKey<Services, Key>,
-    ): RegistrationHandler<Services, Key, "scoped">;
-
-    /**
-     * **Transient services always resolve to a new instance.**
-     *
-     * Begins the registration of a transient service assigned to the given key.
-     *
-     * @param key The key to assign the service to.
-     * @returns An object containing the 'use' method to complete registration of the service.
-     */
-    transient<Key extends PropertyKey>(
-        key: KeyIfNotExistingSingletonKey<Services, Key>,
-    ): RegistrationHandler<Services, Key, "transient">;
-
-    /**
-     * Constructs a container object from this builder.
-     */
-    build(): InjectionContainer<Services>;
-}
-
-/**
- * A dependency injection container. Multiple containers can exist.
- */
-export interface InjectionContainer<
-    Services extends Record<PropertyKey, ServiceInfo> = {},
-> {
-    /**
-     * Takes in a service constructor or factory and returns a function to specify the services to inject as parameters
-     * via a list of strongly-typed service keys.
-     *
-     * @param provider The target constructor or factory.
-     * @returns A function taking in the keys associated with services to inject.
-     */
-    inject<P extends ServiceProvider>(
+    ctor<
+        const K extends keyof Services,
+        const P extends ServiceConstructorWithArgKeys<
+            Constructor<Services[K]>,
+            MapToProperty<ContainerServices, "provider">,
+            KeyTupleForBroadenedValueTuple<
+                ConstructorOrFactoryMapToInstanceMap<
+                    MapToProperty<ContainerServices, "provider">
+                >,
+                ConstructorOrFactoryArgs<ConstructorOrFactory<Services[K]>>
+            >
+        >,
+        const U extends ServiceScopeKey,
+    >(
+        key: KeyIfNotExistingSingletonKey<ContainerServices, K>,
         provider: P,
-    ): {
-        <const Keys extends KeysForValues<Services, ServiceArgs<P>>>(
-            ...keys: Keys
-        ): void;
-    };
-
-    /**
-     * Provides an instance of the service associated with the given key, in compliance with the configuration.
-     *
-     * @param key The service key.
-     * @returns An instance of the associated service.
-     */
-    resolve<Key extends keyof Services>(
-        key: Key,
-    ): ServiceInstance<Services[Key]["factory"]>;
-
-    /**
-     * An object providing a decorator-specific injection method. Can only be used on class definitions and only
-     * requires keys associated with the services to inject. This is for TS5+ decorators matching the upcoming
-     * ECMAScript decorator feature, not experimental legacy decorators. This can be called outside of that context,
-     * but the type inference fails in those scenarios. Prefer the {@link InjectionContainer.inject} method instead.
-     */
-    readonly dec: {
-        inject<
-            const Keys extends KeysForValues<Services, ServiceArgs<P>>,
-            P extends ServiceProvider,
-        >(
-            ...keys: Keys
-        ): (provider: P) => void;
-    };
-
-    /**
-     * Creates a new container that inherits the configuration from the calling container. Can be extended upon without
-     * disrupting the parent container.
-     */
-    child(): InjectionContainerBuilder<Services>;
-
-    /**
-     * Releases object references.
-     */
-    dispose(): void;
-
-    /**
-     * Disposal method required for use of the 'using' keyword in modern ECMAScript environments.
-     */
-    [Symbol.dispose](): void;
-}
-
-export class InjectionContainerBuilderImpl<
-    Services extends Record<PropertyKey, ServiceInfo> = {},
-> implements InjectionContainerBuilder<Services> {
-    #disposed: boolean = false;
-
-    _serviceInfo: Record<PropertyKey, ServiceInfoImpl> = {};
-    _implToDeps: Map<ServiceProvider, PropertyKey[]> = new Map();
-    _resolverCache: Map<PropertyKey, () => any> = new Map();
-
-    private _register<Key extends PropertyKey, Scope extends ServiceScope>(
-        key: KeyIfNotExistingSingletonKey<Services, Key>,
-        scope: Scope,
-    ): RegistrationHandler<Services, Key, Scope> {
-        if (
-            key in this._serviceInfo &&
-            this._serviceInfo[key].scope === "singleton"
-        )
-            throw Error(
-                `Attempted to override the singleton service ${String(key)}`,
-            );
-        return {
-            use: <Service>(
-                lazy: () => ServiceProvider<Service>,
-            ): InjectionContainerBuilder<
-                Prettify<
-                    Omit<Services, Key> & {
-                        [K in Key]: ServiceInfo<Scope, Service>;
-                    }
-                >
-            > => {
-                const _info = this._serviceInfo as Record<
-                    PropertyKey,
-                    ServiceInfo
-                >;
-                if (key in this._serviceInfo) this._resolverCache.delete(key);
-                _info[key] = new ServiceInfoImpl(scope, lazy);
-                return this as any;
-            },
+        scope: U,
+    ): ServiceContainerBuilder<
+        Services,
+        Omit<ContainerServices, K> & { [Key in K]: ContainerService<P, U> }
+    > {
+        if (this._impl[key] && this._impl[key].scope === SINGLETON) {
+            throw new SingletonOverrideError(key);
+        }
+        this._impl[key] = {
+            provider,
+            scope: SERVICE_SCOPE_MAP[scope],
+            factory: false,
         };
+        return this as ServiceContainerBuilder<
+            Services,
+            Omit<ContainerServices, K> & { [Key in K]: ContainerService<P, U> }
+        >;
     }
 
-    singleton<Key extends PropertyKey>(
-        key: KeyIfNotExistingSingletonKey<Services, Key>,
-    ) {
-        return this._register(key, "singleton");
-    }
-
-    scoped<Key extends PropertyKey>(
-        key: KeyIfNotExistingSingletonKey<Services, Key>,
-    ) {
-        return this._register(key, "scoped");
-    }
-
-    transient<Key extends PropertyKey>(
-        key: KeyIfNotExistingSingletonKey<Services, Key>,
-    ) {
-        return this._register(key, "transient");
-    }
-
-    build(): InjectionContainer<Services> {
-        const result = new InjectionContainerImpl();
-        result._serviceInfo = this._serviceInfo;
-        result._implToDeps = this._implToDeps;
-        result._resolverCache = this._resolverCache;
-        return result as unknown as InjectionContainer<Services>;
-    }
-}
-
-export class InjectionContainerImpl<
-    Services extends Record<PropertyKey, ServiceInfo> = {},
-> implements InjectionContainer<Services> {
-    #disposed: boolean = false;
-
-    _serviceInfo: Record<PropertyKey, ServiceInfoImpl> = {};
-    _implToDeps: Map<ServiceProvider, PropertyKey[]> = new Map();
-    _resolverCache: Map<PropertyKey, () => any> = new Map();
-
-    inject<P extends ServiceProvider>(
+    factory<
+        const K extends keyof Services,
+        const P extends ServiceFactoryWithArgKeys<
+            Factory<Services[K]>,
+            MapToProperty<ContainerServices, "provider">,
+            KeyTupleForBroadenedValueTuple<
+                ConstructorOrFactoryMapToInstanceMap<
+                    MapToProperty<ContainerServices, "provider">
+                >,
+                ConstructorOrFactoryArgs<ConstructorOrFactory<Services[K]>>
+            >
+        >,
+        const U extends ServiceScopeKey,
+    >(
+        key: KeyIfNotExistingSingletonKey<ContainerServices, K>,
         provider: P,
-    ): {
-        <const Keys extends KeysForValues<Services, ServiceArgs<P>>>(
-            ...keys: Keys
-        ): void;
-    } {
-        if (this.#disposed)
-            throw new ContainerDisposedError(
-                "Attempted to inject from a disposed container",
-            );
-        return (...keys) => {
-            this._implToDeps.set(provider, keys);
+        scope: U,
+    ): ServiceContainerBuilder<
+        Services,
+        Omit<ContainerServices, K> & { [Key in K]: ContainerService<P, U> }
+    > {
+        if (this._impl[key] && this._impl[key].scope === SINGLETON) {
+            throw new SingletonOverrideError(key);
+        }
+        this._impl[key] = {
+            provider,
+            scope: SERVICE_SCOPE_MAP[scope],
+            factory: true,
         };
+        return this as ServiceContainerBuilder<
+            Services,
+            Omit<ContainerServices, K> & { [Key in K]: ContainerService<P, U> }
+        >;
     }
 
-    resolve<Key extends keyof Services>(
-        key: Key,
-    ): ServiceInstance<Services[Key]["factory"]> {
-        if (this.#disposed)
-            throw new ContainerDisposedError(
-                "Attempted to resolve from a disposed container",
-            );
+    instance<
+        const K extends keyof Services,
+        const I extends Services[K],
+        const U extends ServiceScopeKey,
+    >(
+        key: KeyIfNotExistingSingletonKey<ContainerServices, K>,
+        instance: I,
+        scope: U,
+    ): ServiceContainerBuilder<
+        Services,
+        Omit<ContainerServices, K> & {
+            [Key in K]: ContainerService<
+                (() => I) & { [ARGS]: []; [UNUSED_NAME_SERVICE]: true },
+                U
+            >;
+        }
+    > {
+        if (this._impl[key] && this._impl[key].scope === SINGLETON) {
+            throw new SingletonOverrideError(key);
+        }
+        this._impl[key] = {
+            provider: Object.assign(() => instance, {
+                [ARGS]: [],
+                [UNUSED_NAME_SERVICE]: true,
+            }) as any,
+            scope: SERVICE_SCOPE_MAP[scope],
+            factory: true,
+        };
+        return this as ServiceContainerBuilder<
+            Services,
+            Omit<ContainerServices, K> & {
+                [Key in K]: ContainerService<(() => I) & { [ARGS]: [] }, U>;
+            }
+        >;
+    }
+
+    build(): ServiceContainer<Services, Prettify<ContainerServices>> {
+        return new ServiceContainerImpl(
+            this._context,
+            this._impl as ContainerServices,
+            this._resolvers,
+        );
+    }
+}
+
+export interface ServiceContainer<
+    Services extends Record<PropertyKey, ServiceInstance>,
+    ContainerServices extends Record<PropertyKey, ContainerService>,
+> {
+    resolve<const K extends keyof Services>(key: K): Services[K];
+    child(): ServiceContainerBuilder<Services, ContainerServices>;
+}
+
+export class ServiceContainerImpl<
+    Services extends Record<PropertyKey, ServiceInstance>,
+    ContainerServices extends Record<PropertyKey, ContainerService>,
+> implements ServiceContainer<Services, ContainerServices> {
+    private readonly _context: ServiceContext<Services>;
+    private readonly _impl: Record<PropertyKey, ContainerService>;
+
+    private readonly _resolvers: Map<PropertyKey, () => unknown>;
+
+    constructor(
+        context: ServiceContext<Services>,
+        impl: ContainerServices,
+        resolvers: Map<PropertyKey, () => unknown> = new Map(),
+    ) {
+        this._context = context;
+        this._impl = impl;
+        this._resolvers = resolvers;
+    }
+
+    resolve<const K extends keyof Services>(key: K): Services[K] {
         const resolver = this._ensureResolverCached(key);
-        return resolver();
+        return resolver() as Services[K];
     }
 
-    child(): InjectionContainerBuilder<Services> {
-        if (this.#disposed)
-            throw new ContainerDisposedError(
-                "Attempted to create a child from a disposed container",
-            );
-
-        const result = new InjectionContainerBuilderImpl();
-        result._serviceInfo = {};
-
-        const infoEntries = Object.entries(this._serviceInfo);
-        for (const [k, v] of infoEntries) {
-            const curr = v._derive();
-            if (v.scope === "singleton") {
-                const resolver = this._ensureResolverCached(k);
-                result._resolverCache.set(k, resolver);
+    child(): ServiceContainerBuilder<Services, ContainerServices> {
+        const singletonResolvers = new Map<PropertyKey, () => unknown>();
+        for (const [key, val] of Object.entries(this._impl)) {
+            if (val.scope === SINGLETON) {
+                const resolver = this._ensureResolverCached(key as any);
+                singletonResolvers.set(key, resolver);
             }
-            result._serviceInfo[k] = curr;
         }
-
-        const depsEntries = this._implToDeps.entries();
-        for (const [k, v] of depsEntries) {
-            const curr = [...v];
-            result._implToDeps.set(k, curr);
-        }
-
-        return result as unknown as InjectionContainerBuilder<Services>;
+        const builder = new ServiceContainerBuilderImpl(
+            this._context,
+            { ...this._impl },
+            singletonResolvers,
+        );
+        return builder;
     }
 
-    private _ensureResolverCached<Key extends keyof Services>(
-        key: Key,
-    ): () => ServiceInstance<Services[Key]["factory"]> {
-        const cached = this._resolverCache.get(key);
-        if (cached) return cached;
+    private _ensureResolverCached<const K extends keyof Services>(
+        key: K,
+    ): () => unknown {
+        const cached = this._resolvers.get(key);
+        if (cached) return cached as any;
 
-        const info = this._serviceInfo[key];
-        if (!info) throw new Error(`No service for key '${String(key)}' found`);
+        const impl = this._impl[key];
+        if (!impl) throw new ServiceNotFoundError(key);
 
-        const depKeys = this._implToDeps.get(info[RAW_PROVIDER]) ?? [];
+        const deps: PropertyKey[] | undefined = impl.provider[ARGS];
+        if (!deps) throw new DepsNotFoundError(key);
 
-        let argResolvers = depKeys.map((depKey) =>
-            this._ensureResolverCached(depKey),
+        const argResolvers = deps.map((k) =>
+            this._ensureResolverCached(k as keyof Services),
         );
         const resolveArgs = () => argResolvers.map((r) => r());
 
-        const resolve = () => info.factory(...resolveArgs());
+        let resolve: () => unknown;
+        if (impl.factory) {
+            try {
+                resolve = () => (impl.provider as Factory)(...resolveArgs());
+            } catch {
+                throw new ProviderTypeError(key, "factory");
+            }
+        } else {
+            try {
+                resolve = () =>
+                    new (impl.provider as Constructor)(...resolveArgs());
+            } catch {
+                throw new ProviderTypeError(key, "class");
+            }
+        }
 
         const resolver =
-            info.scope === "singleton" || info.scope === "scoped"
-                ? (() => {
+            impl.scope === TRANSIENT
+                ? resolve
+                : (() => {
                       const instance = resolve();
                       return () => instance;
-                  })()
-                : resolve;
+                  })();
 
-        this._resolverCache.set(key, resolver);
+        this._resolvers.set(key, resolver);
         return resolver;
-    }
-
-    readonly dec: {
-        inject<
-            const Keys extends KeysForValues<Services, ServiceArgs<P>>,
-            const P extends ServiceProvider,
-        >(
-            ...keys: Keys
-        ): (provider: P) => void;
-    } = {
-        inject: <
-            const Keys extends KeysForValues<Services, ServiceArgs<P>>,
-            const P extends ServiceProvider,
-        >(
-            ...keys: Keys
-        ): ((provider: P) => void) => {
-            if (this.#disposed)
-                throw new ContainerDisposedError(
-                    "Attempted to inject from a disposed container",
-                );
-            return (provider) => {
-                this._implToDeps.set(provider, keys);
-            };
-        },
-    };
-
-    dispose(): void {
-        if (this.#disposed) return;
-        this.#disposed = true;
-
-        this._serviceInfo = {};
-        this._implToDeps.clear();
-        this._resolverCache.clear();
-    }
-
-    [Symbol.dispose]() {
-        this.dispose();
     }
 }
