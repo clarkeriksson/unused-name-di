@@ -23,9 +23,11 @@ export interface ServiceContextBuilder<
         key: NewKey<K, S>,
     ): {
         useType: <const T>() => ServiceContextBuilder<
-            S & {
-                [Key in K]: T;
-            }
+            Prettify<
+                S & {
+                    [Key in K]: T;
+                }
+            >
         >;
     };
 
@@ -53,18 +55,22 @@ export class ServiceContextBuilderImpl<
         key: NewKey<K, S>,
     ): {
         useType: <const T>() => ServiceContextBuilder<
-            S & {
-                [Key in K]: T;
-            }
+            Prettify<
+                S & {
+                    [Key in K]: T;
+                }
+            >
         >;
     } {
         return {
             useType: <const T>() => {
                 this._keys.add(key);
                 return this as ServiceContextBuilder<
-                    S & {
-                        [Key in K]: T;
-                    }
+                    Prettify<
+                        S & {
+                            [Key in K]: T;
+                        }
+                    >
                 >;
             },
         };

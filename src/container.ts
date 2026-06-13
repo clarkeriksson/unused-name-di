@@ -91,7 +91,7 @@ export interface ServiceContainerBuilder<
     instance<
         const K extends keyof Services,
         const I extends Services[K],
-        const U extends ServiceScopeKey,
+        const U extends Exclude<ServiceScopeKey, "transient">,
     >(
         key: KeyIfNotExistingSingletonKey<ContainerServices, K>,
         instance: I,
