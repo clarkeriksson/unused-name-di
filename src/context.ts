@@ -1,4 +1,4 @@
-import { ARGS, UNUSED_NAME_SERVICE } from "./const";
+import { INJECTED, UN_SERVICE_PROVIDER } from "./const";
 import {
     ServiceContainerBuilder,
     ServiceContainerBuilderImpl,
@@ -110,9 +110,19 @@ export interface ServiceContext<S extends ServiceInstanceRecord = {}> {
     >(
         provider: C,
         ...args: ConstructorOrFactoryArgs<C> extends [] ? [args?: A] : [args: A]
-    ): C & { [ARGS]: A };
+    ): C & { [INJECTED]: A; [UN_SERVICE_PROVIDER]: true };
 
     child(): ServiceContainerBuilder<S>;
+
+    isProvider<
+        C extends ConstructorOrFactory,
+        const A extends KeyTupleForBroadenedValueTuple<
+            S,
+            ConstructorOrFactoryArgs<C>
+        >,
+    >(
+        value: C,
+    ): value is C & { [INJECTED]: A; [UN_SERVICE_PROVIDER]: true };
 }
 
 export class ServiceContextImpl<
@@ -135,17 +145,33 @@ export class ServiceContextImpl<
     >(
         provider: C,
         ...args: ConstructorOrFactoryArgs<C> extends [] ? [args?: A] : [args: A]
-    ): C & { [ARGS]: A } {
+    ): C & { [INJECTED]: A; [UN_SERVICE_PROVIDER]: true } {
         const argArr = (args[0] as A) ?? [];
         this._args.set(provider, argArr);
         return Object.assign(provider, {
-            [ARGS]: argArr,
-            [UNUSED_NAME_SERVICE]: true as const,
+            [INJECTED]: argArr,
+            [UN_SERVICE_PROVIDER]: true as const,
         });
     }
 
     child(): ServiceContainerBuilder<S> {
         return new ServiceContainerBuilderImpl(this, {});
+    }
+
+    isProvider<
+        C extends ConstructorOrFactory,
+        const A extends KeyTupleForBroadenedValueTuple<
+            S,
+            ConstructorOrFactoryArgs<C>
+        >,
+    >(value: C): value is C & { [INJECTED]: A; [UN_SERVICE_PROVIDER]: true } {
+        if (!(UN_SERVICE_PROVIDER in value)) return false;
+        const args = this._args.get(value);
+        if (!args) return false;
+        return (
+            INJECTED in value &&
+            args.every((v, i) => v === (value[INJECTED] as any[])[i])
+        );
     }
 }
 
@@ -157,7 +183,8 @@ export type ServiceConstructorWithArgKeys<
         ConstructorArgs<Provider>
     > = any,
 > = Provider & {
-    readonly [ARGS]: Args;
+    readonly [INJECTED]: Args;
+    readonly [UN_SERVICE_PROVIDER]: true;
 };
 
 export type ServiceFactoryWithArgKeys<
@@ -168,7 +195,8 @@ export type ServiceFactoryWithArgKeys<
         FactoryArgs<Provider>
     > = any,
 > = Provider & {
-    readonly [ARGS]: Args;
+    readonly [INJECTED]: Args;
+    readonly [UN_SERVICE_PROVIDER]: true;
 };
 
 export type ServiceProviderWithArgKeys<
@@ -179,5 +207,6 @@ export type ServiceProviderWithArgKeys<
         ConstructorOrFactoryArgs<Provider>
     > = any,
 > = Provider & {
-    readonly [ARGS]: Args;
+    readonly [INJECTED]: Args;
+    readonly [UN_SERVICE_PROVIDER]: true;
 };

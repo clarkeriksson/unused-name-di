@@ -1,5 +1,5 @@
 import {
-    ARGS,
+    INJECTED,
     CTOR,
     FACTORY,
     ProviderTypeKey,
@@ -9,7 +9,7 @@ import {
     ServiceScopeTokenFromKey,
     SINGLETON,
     TRANSIENT,
-    UNUSED_NAME_SERVICE,
+    UN_SERVICE_PROVIDER,
 } from "./const";
 import {
     ServiceConstructorWithArgKeys,
@@ -110,7 +110,7 @@ export interface ServiceContainerBuilder<
         Services,
         Omit<ContainerServices, K> & {
             [Key in K]: ContainerServiceInfo<
-                (() => I) & { [ARGS]: [] },
+                (() => I) & { [INJECTED]: []; [UN_SERVICE_PROVIDER]: true },
                 "factory",
                 U
             >;
@@ -229,7 +229,7 @@ export class ServiceContainerBuilderImpl<
         Services,
         Omit<ContainerServices, K> & {
             [Key in K]: ContainerServiceInfo<
-                (() => I) & { [ARGS]: []; [UNUSED_NAME_SERVICE]: true },
+                (() => I) & { [INJECTED]: []; [UN_SERVICE_PROVIDER]: true },
                 "factory",
                 U
             >;
@@ -240,8 +240,8 @@ export class ServiceContainerBuilderImpl<
         }
         this._impl[key] = {
             provider: Object.assign(() => instance, {
-                [ARGS]: [],
-                [UNUSED_NAME_SERVICE]: true,
+                [INJECTED]: [],
+                [UN_SERVICE_PROVIDER]: true,
             }) as any,
             scope: SERVICE_SCOPE_MAP[scope],
             providerType: FACTORY,
@@ -250,7 +250,7 @@ export class ServiceContainerBuilderImpl<
             Services,
             Omit<ContainerServices, K> & {
                 [Key in K]: ContainerServiceInfo<
-                    (() => I) & { [ARGS]: [] },
+                    (() => I) & { [INJECTED]: []; [UN_SERVICE_PROVIDER]: true },
                     "factory",
                     U
                 >;
@@ -324,7 +324,7 @@ export class ServiceContainerImpl<
         const impl = this._impl[key];
         if (!impl) throw new ServiceNotFoundError(key);
 
-        const deps: PropertyKey[] | undefined = impl.provider[ARGS];
+        const deps: PropertyKey[] | undefined = impl.provider[INJECTED];
         if (!deps) throw new DepsNotFoundError(key);
 
         const argResolvers = deps.map((k) =>

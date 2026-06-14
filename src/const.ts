@@ -53,7 +53,7 @@ export type ProviderTypeTokenFromKey<K extends ProviderTypeKey> =
     (typeof PROVIDER_TYPE_MAP)[K];
 
 /** {@link Symbol} property key for the argument metadata in registered services. */
-export const ARGS = Symbol("args");
+export const INJECTED = Symbol("injected");
 
 /** {@link Symbol} property key tagging a constructor or factory as a registered service provider. */
-export const UNUSED_NAME_SERVICE = Symbol("unused-name-service");
+export const UN_SERVICE_PROVIDER = Symbol("unused-name-service-provider");
