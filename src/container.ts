@@ -1,7 +1,12 @@
 import {
     ARGS,
+    CTOR,
+    FACTORY,
+    ProviderTypeKey,
+    ProviderTypeTokenFromKey,
     SERVICE_SCOPE_MAP,
     ServiceScopeKey,
+    ServiceScopeTokenFromKey,
     SINGLETON,
     TRANSIENT,
     UNUSED_NAME_SERVICE,
@@ -28,21 +33,22 @@ import {
     KeyTupleForBroadenedValueTuple,
     MapToProperty,
     Prettify,
-    ServiceInstance,
+    ServiceInstanceRecord,
 } from "./global";
 
-export interface ContainerService<
+export interface ContainerServiceInfo<
     Provider extends ServiceProviderWithArgKeys = ServiceProviderWithArgKeys,
+    ProviderType extends ProviderTypeKey = ProviderTypeKey,
     Scope extends ServiceScopeKey = ServiceScopeKey,
 > {
     readonly provider: Provider;
-    readonly scope: (typeof SERVICE_SCOPE_MAP)[Scope];
-    readonly factory: boolean;
+    readonly scope: ServiceScopeTokenFromKey<Scope>;
+    readonly providerType: ProviderTypeTokenFromKey<ProviderType>;
 }
 
 export interface ServiceContainerBuilder<
-    Services extends Record<PropertyKey, ServiceInstance>,
-    ContainerServices extends Record<PropertyKey, ContainerService> = {},
+    Services extends ServiceInstanceRecord,
+    ContainerServices extends Record<PropertyKey, ContainerServiceInfo> = {},
 > {
     ctor<
         const K extends keyof Services,
@@ -63,7 +69,9 @@ export interface ServiceContainerBuilder<
         scope: U,
     ): ServiceContainerBuilder<
         Services,
-        Omit<ContainerServices, K> & { [Key in K]: ContainerService<P, U> }
+        Omit<ContainerServices, K> & {
+            [Key in K]: ContainerServiceInfo<P, "ctor", U>;
+        }
     >;
 
     factory<
@@ -85,7 +93,9 @@ export interface ServiceContainerBuilder<
         scope: U,
     ): ServiceContainerBuilder<
         Services,
-        Omit<ContainerServices, K> & { [Key in K]: ContainerService<P, U> }
+        Omit<ContainerServices, K> & {
+            [Key in K]: ContainerServiceInfo<P, "factory", U>;
+        }
     >;
 
     instance<
@@ -99,7 +109,11 @@ export interface ServiceContainerBuilder<
     ): ServiceContainerBuilder<
         Services,
         Omit<ContainerServices, K> & {
-            [Key in K]: ContainerService<(() => I) & { [ARGS]: [] }, U>;
+            [Key in K]: ContainerServiceInfo<
+                (() => I) & { [ARGS]: [] },
+                "factory",
+                U
+            >;
         }
     >;
 
@@ -107,11 +121,11 @@ export interface ServiceContainerBuilder<
 }
 
 export class ServiceContainerBuilderImpl<
-    Services extends Record<PropertyKey, ServiceInstance>,
-    ContainerServices extends Record<PropertyKey, ContainerService> = {},
+    Services extends ServiceInstanceRecord,
+    ContainerServices extends Record<PropertyKey, ContainerServiceInfo> = {},
 > implements ServiceContainerBuilder<Services, ContainerServices> {
     private readonly _context: ServiceContext<Services>;
-    private readonly _impl: Record<PropertyKey, ContainerService>;
+    private readonly _impl: Record<PropertyKey, ContainerServiceInfo>;
 
     private readonly _resolvers: Map<PropertyKey, () => unknown>;
 
@@ -144,7 +158,9 @@ export class ServiceContainerBuilderImpl<
         scope: U,
     ): ServiceContainerBuilder<
         Services,
-        Omit<ContainerServices, K> & { [Key in K]: ContainerService<P, U> }
+        Omit<ContainerServices, K> & {
+            [Key in K]: ContainerServiceInfo<P, "ctor", U>;
+        }
     > {
         if (this._impl[key] && this._impl[key].scope === SINGLETON) {
             throw new SingletonOverrideError(key);
@@ -152,11 +168,13 @@ export class ServiceContainerBuilderImpl<
         this._impl[key] = {
             provider,
             scope: SERVICE_SCOPE_MAP[scope],
-            factory: false,
+            providerType: CTOR,
         };
         return this as ServiceContainerBuilder<
             Services,
-            Omit<ContainerServices, K> & { [Key in K]: ContainerService<P, U> }
+            Omit<ContainerServices, K> & {
+                [Key in K]: ContainerServiceInfo<P, "ctor", U>;
+            }
         >;
     }
 
@@ -179,7 +197,9 @@ export class ServiceContainerBuilderImpl<
         scope: U,
     ): ServiceContainerBuilder<
         Services,
-        Omit<ContainerServices, K> & { [Key in K]: ContainerService<P, U> }
+        Omit<ContainerServices, K> & {
+            [Key in K]: ContainerServiceInfo<P, "factory", U>;
+        }
     > {
         if (this._impl[key] && this._impl[key].scope === SINGLETON) {
             throw new SingletonOverrideError(key);
@@ -187,11 +207,13 @@ export class ServiceContainerBuilderImpl<
         this._impl[key] = {
             provider,
             scope: SERVICE_SCOPE_MAP[scope],
-            factory: true,
+            providerType: FACTORY,
         };
         return this as ServiceContainerBuilder<
             Services,
-            Omit<ContainerServices, K> & { [Key in K]: ContainerService<P, U> }
+            Omit<ContainerServices, K> & {
+                [Key in K]: ContainerServiceInfo<P, "factory", U>;
+            }
         >;
     }
 
@@ -206,8 +228,9 @@ export class ServiceContainerBuilderImpl<
     ): ServiceContainerBuilder<
         Services,
         Omit<ContainerServices, K> & {
-            [Key in K]: ContainerService<
+            [Key in K]: ContainerServiceInfo<
                 (() => I) & { [ARGS]: []; [UNUSED_NAME_SERVICE]: true },
+                "factory",
                 U
             >;
         }
@@ -221,12 +244,16 @@ export class ServiceContainerBuilderImpl<
                 [UNUSED_NAME_SERVICE]: true,
             }) as any,
             scope: SERVICE_SCOPE_MAP[scope],
-            factory: true,
+            providerType: FACTORY,
         };
         return this as ServiceContainerBuilder<
             Services,
             Omit<ContainerServices, K> & {
-                [Key in K]: ContainerService<(() => I) & { [ARGS]: [] }, U>;
+                [Key in K]: ContainerServiceInfo<
+                    (() => I) & { [ARGS]: [] },
+                    "factory",
+                    U
+                >;
             }
         >;
     }
@@ -241,19 +268,19 @@ export class ServiceContainerBuilderImpl<
 }
 
 export interface ServiceContainer<
-    Services extends Record<PropertyKey, ServiceInstance>,
-    ContainerServices extends Record<PropertyKey, ContainerService>,
+    Services extends ServiceInstanceRecord,
+    ContainerServices extends Record<PropertyKey, ContainerServiceInfo>,
 > {
     resolve<const K extends keyof Services>(key: K): Services[K];
     child(): ServiceContainerBuilder<Services, ContainerServices>;
 }
 
 export class ServiceContainerImpl<
-    Services extends Record<PropertyKey, ServiceInstance>,
-    ContainerServices extends Record<PropertyKey, ContainerService>,
+    Services extends ServiceInstanceRecord,
+    ContainerServices extends Record<PropertyKey, ContainerServiceInfo>,
 > implements ServiceContainer<Services, ContainerServices> {
     private readonly _context: ServiceContext<Services>;
-    private readonly _impl: Record<PropertyKey, ContainerService>;
+    private readonly _impl: Record<PropertyKey, ContainerServiceInfo>;
 
     private readonly _resolvers: Map<PropertyKey, () => unknown>;
 
@@ -306,7 +333,7 @@ export class ServiceContainerImpl<
         const resolveArgs = () => argResolvers.map((r) => r());
 
         let resolve: () => unknown;
-        if (impl.factory) {
+        if (impl.providerType === FACTORY) {
             try {
                 resolve = () => (impl.provider as Factory)(...resolveArgs());
             } catch {

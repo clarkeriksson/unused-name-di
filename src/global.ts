@@ -1,5 +1,5 @@
-import { ServiceScopeKey } from "./const";
-import { ContainerService } from "./container";
+import { ProviderTypeKey, ServiceScopeKey } from "./const";
+import { ContainerServiceInfo } from "./container";
 
 /**
  * Type improving the mouseover preview of the argument type.
@@ -7,8 +7,14 @@ import { ContainerService } from "./container";
  */
 export declare type Prettify<T> = { [K in keyof T]: T[K] } & {};
 
-/** Alias for unknown used for documentation purposes. */
+/** Semantic type representing a service instance type. */
 export declare type ServiceInstance = unknown;
+
+/** Semantic type representing a record from service keys to their assigned instance types. */
+export declare type ServiceInstanceRecord = Record<
+    PropertyKey,
+    ServiceInstance
+>;
 
 /**
  * Broadens primitive const types to their fully broadened js primitive type, and passes all other types through.
@@ -43,7 +49,7 @@ export declare type Constructor<
  */
 export declare type Factory<
     T = unknown,
-    Args extends readonly any[] = any[],
+    Args extends readonly any[] = readonly any[],
 > = (...args: Args) => T;
 
 /**
@@ -138,26 +144,30 @@ export declare type MapToProperty<T, K extends keyof T[keyof T]> = {
 };
 
 /**
- * Type that finds all {@link ContainerService} keys associated with a {@link ContainerService} the has a {@link ContainerService.scope scope} assignable to the given {@link Scope} type parameter in the {@link Services} {@link Record} type.
- * @param Services The {@link Record} type with {@link ContainerService} values.
+ * Type that finds all {@link ContainerServiceInfo} keys associated with a {@link ContainerServiceInfo} the has a {@link ContainerServiceInfo.scope scope} assignable to the given {@link Scope} type parameter in the {@link Services} {@link Record} type.
+ * @param Services The {@link Record} type with {@link ContainerServiceInfo} values.
  * @param Scope The {@link ServiceScopeKey} to filter by.
  */
 export declare type ServiceScopeKeys<
-    Services extends Record<PropertyKey, ContainerService>,
+    Services extends Record<PropertyKey, ContainerServiceInfo>,
     Scope extends ServiceScopeKey,
 > = {
-    [Key in keyof Services]: Services[Key] extends ContainerService<any, Scope>
+    [Key in keyof Services]: Services[Key] extends ContainerServiceInfo<
+        any,
+        ProviderTypeKey,
+        Scope
+    >
         ? Key
         : never;
 }[keyof Services];
 
 /**
- * Type that returns the provided {@link Key} type if it is not already associated with a {@link ContainerService} with {@link ContainerService.scope scope} value of singleton.
- * @param Services The {@link Record} type with {@link ContainerService} values.
+ * Type that returns the provided {@link Key} type if it is not already associated with a {@link ContainerServiceInfo} with {@link ContainerServiceInfo.scope scope} value of singleton.
+ * @param Services The {@link Record} type with {@link ContainerServiceInfo} values.
  * @param Key The key to conditionally pass through.
  */
 export declare type KeyIfNotExistingSingletonKey<
-    Services extends Record<PropertyKey, ContainerService>,
+    Services extends Record<PropertyKey, ContainerServiceInfo>,
     Key extends PropertyKey,
 > = Key extends ServiceScopeKeys<Services, "singleton"> ? never : Key;
 

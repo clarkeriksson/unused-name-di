@@ -14,11 +14,10 @@ import {
     NewKey,
     Prettify,
     ServiceInstance,
+    ServiceInstanceRecord,
 } from "./global";
 
-export interface ServiceContextBuilder<
-    S extends Record<PropertyKey, ServiceInstance> = {},
-> {
+export interface ServiceContextBuilder<S extends ServiceInstanceRecord = {}> {
     forKey<const K extends PropertyKey>(
         key: NewKey<K, S>,
     ): {
@@ -43,7 +42,7 @@ export interface ServiceContextBuilder<
 }
 
 export class ServiceContextBuilderImpl<
-    S extends Record<PropertyKey, ServiceInstance> = {},
+    S extends ServiceInstanceRecord = {},
 > implements ServiceContextBuilder<S> {
     _keys: Set<PropertyKey>;
 
@@ -101,9 +100,7 @@ export class ServiceContextBuilderImpl<
     }
 }
 
-export interface ServiceContext<
-    S extends Record<PropertyKey, ServiceInstance> = {},
-> {
+export interface ServiceContext<S extends ServiceInstanceRecord = {}> {
     inject<
         const C extends ConstructorOrFactory,
         const A extends KeyTupleForBroadenedValueTuple<
@@ -119,7 +116,7 @@ export interface ServiceContext<
 }
 
 export class ServiceContextImpl<
-    S extends Record<PropertyKey, ServiceInstance> = {},
+    S extends ServiceInstanceRecord = {},
 > implements ServiceContext<S> {
     _keys: Set<PropertyKey>;
     _args: Map<ConstructorOrFactory, PropertyKey[]>;
@@ -154,7 +151,7 @@ export class ServiceContextImpl<
 
 export type ServiceConstructorWithArgKeys<
     Provider extends Constructor = Constructor,
-    Context extends Record<PropertyKey, ServiceInstance> = any,
+    Context extends ServiceInstanceRecord = any,
     Args extends KeyTupleForBroadenedValueTuple<
         Context,
         ConstructorArgs<Provider>
@@ -165,7 +162,7 @@ export type ServiceConstructorWithArgKeys<
 
 export type ServiceFactoryWithArgKeys<
     Provider extends Factory = Factory,
-    Context extends Record<PropertyKey, ServiceInstance> = any,
+    Context extends ServiceInstanceRecord = any,
     Args extends KeyTupleForBroadenedValueTuple<
         Context,
         FactoryArgs<Provider>
@@ -176,7 +173,7 @@ export type ServiceFactoryWithArgKeys<
 
 export type ServiceProviderWithArgKeys<
     Provider extends ConstructorOrFactory = ConstructorOrFactory,
-    Context extends Record<PropertyKey, ServiceInstance> = any,
+    Context extends ServiceInstanceRecord = any,
     Args extends KeyTupleForBroadenedValueTuple<
         Context,
         ConstructorOrFactoryArgs<Provider>

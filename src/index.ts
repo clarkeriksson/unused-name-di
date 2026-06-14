@@ -4,7 +4,11 @@ function context(): ServiceContextBuilder {
     return new ServiceContextBuilderImpl();
 }
 
+/**
+ * UnusedName namespace.
+ */
 const UnusedName = {
+    /** Creates a new {@link ServiceContextBuilder}. */
     context,
 };
 
