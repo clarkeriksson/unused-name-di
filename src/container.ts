@@ -2,136 +2,127 @@ import {
     INJECTED,
     CTOR,
     FACTORY,
-    ProviderTypeKey,
-    ProviderTypeTokenFromKey,
-    SERVICE_SCOPE_MAP,
-    ServiceScopeKey,
-    ServiceScopeTokenFromKey,
+    ProviderKindKey,
+    ProviderKindFromKey,
+    SCOPE_MAP,
+    ScopeKey,
+    ScopeTokenFromKey,
     SINGLETON,
     TRANSIENT,
-    UN_SERVICE_PROVIDER,
+    PROVIDER,
 } from "./const";
 import {
-    ServiceConstructorWithArgKeys,
+    CtorWithArgKeys,
     ServiceContext,
-    ServiceFactoryWithArgKeys,
-    ServiceProviderWithArgKeys,
+    FactoryWithArgKeys,
+    ProviderWithArgKeys,
 } from "./context";
 import {
     DepsNotFoundError,
-    ProviderTypeError,
     ServiceNotFoundError,
     SingletonOverrideError,
 } from "./errors";
 import {
-    Constructor,
-    ConstructorOrFactory,
-    ConstructorOrFactoryArgs,
-    ConstructorOrFactoryMapToInstanceMap,
+    Ctor,
+    Creator,
+    CreatorArgs,
+    CreatorMapToInstanceMap,
     Factory,
-    KeyIfNotExistingSingletonKey,
-    KeyTupleForBroadenedValueTuple,
+    KeyIfExtensible,
+    KeysForValueTuple,
     MapToProperty,
-    Prettify,
-    ServiceInstanceRecord,
+    Pretty,
+    InstanceRecord,
+    ProviderTag,
+    BroadenPrimitiveConst,
 } from "./global";
 
-export interface ContainerServiceInfo<
-    Provider extends ServiceProviderWithArgKeys = ServiceProviderWithArgKeys,
-    ProviderType extends ProviderTypeKey = ProviderTypeKey,
-    Scope extends ServiceScopeKey = ServiceScopeKey,
+export interface ServiceInfo<
+    Provider extends ProviderWithArgKeys = ProviderWithArgKeys,
+    ProviderKind extends ProviderKindKey = ProviderKindKey,
+    Scope extends ScopeKey = ScopeKey,
 > {
     readonly provider: Provider;
-    readonly scope: ServiceScopeTokenFromKey<Scope>;
-    readonly providerType: ProviderTypeTokenFromKey<ProviderType>;
+    readonly scope: ScopeTokenFromKey<Scope>;
+    readonly providerKind: ProviderKindFromKey<ProviderKind>;
 }
 
 export interface ServiceContainerBuilder<
-    Services extends ServiceInstanceRecord,
-    ContainerServices extends Record<PropertyKey, ContainerServiceInfo> = {},
+    ContextServices extends InstanceRecord,
+    Services extends Record<PropertyKey, ServiceInfo> = {},
 > {
     ctor<
-        const K extends keyof Services,
-        const P extends ServiceConstructorWithArgKeys<
-            Constructor<Services[K]>,
-            MapToProperty<ContainerServices, "provider">,
-            KeyTupleForBroadenedValueTuple<
-                ConstructorOrFactoryMapToInstanceMap<
-                    MapToProperty<ContainerServices, "provider">
-                >,
-                ConstructorOrFactoryArgs<ConstructorOrFactory<Services[K]>>
-            >
+        const K extends keyof ContextServices,
+        const P extends CtorWithArgKeys<
+            Ctor<ContextServices[K]>,
+            MapToProperty<Services, "provider">,
+            KeysForValueTuple<Services, any>
         >,
-        const U extends ServiceScopeKey,
+        const U extends ScopeKey,
     >(
-        key: KeyIfNotExistingSingletonKey<ContainerServices, K>,
+        key: KeyIfExtensible<Services, K>,
         provider: P,
         scope: U,
     ): ServiceContainerBuilder<
-        Services,
-        Omit<ContainerServices, K> & {
-            [Key in K]: ContainerServiceInfo<P, "ctor", U>;
+        ContextServices,
+        Omit<Services, K> & {
+            [Key in K]: ServiceInfo<P, "ctor", U>;
         }
     >;
 
     factory<
-        const K extends keyof Services,
-        const P extends ServiceFactoryWithArgKeys<
-            Factory<Services[K]>,
-            MapToProperty<ContainerServices, "provider">,
-            KeyTupleForBroadenedValueTuple<
-                ConstructorOrFactoryMapToInstanceMap<
-                    MapToProperty<ContainerServices, "provider">
-                >,
-                ConstructorOrFactoryArgs<ConstructorOrFactory<Services[K]>>
-            >
+        const K extends keyof ContextServices,
+        const P extends FactoryWithArgKeys<
+            Factory<ContextServices[K]>,
+            MapToProperty<Services, "provider">,
+            KeysForValueTuple<Services, any>
         >,
-        const U extends ServiceScopeKey,
+        const U extends ScopeKey,
     >(
-        key: KeyIfNotExistingSingletonKey<ContainerServices, K>,
+        key: KeyIfExtensible<Services, K>,
         provider: P,
         scope: U,
     ): ServiceContainerBuilder<
-        Services,
-        Omit<ContainerServices, K> & {
-            [Key in K]: ContainerServiceInfo<P, "factory", U>;
+        ContextServices,
+        Omit<Services, K> & {
+            [Key in K]: ServiceInfo<P, "factory", U>;
         }
     >;
 
     instance<
-        const K extends keyof Services,
-        const I extends Services[K],
-        const U extends Exclude<ServiceScopeKey, "transient">,
+        const K extends keyof ContextServices,
+        const I extends ContextServices[K],
+        const U extends Exclude<ScopeKey, "transient">,
     >(
-        key: KeyIfNotExistingSingletonKey<ContainerServices, K>,
+        key: KeyIfExtensible<Services, K>,
         instance: I,
         scope: U,
     ): ServiceContainerBuilder<
-        Services,
-        Omit<ContainerServices, K> & {
-            [Key in K]: ContainerServiceInfo<
-                (() => I) & { [INJECTED]: []; [UN_SERVICE_PROVIDER]: true },
+        ContextServices,
+        Omit<Services, K> & {
+            [Key in K]: ServiceInfo<
+                Factory<BroadenPrimitiveConst<I>> & ProviderTag<[]>,
                 "factory",
                 U
             >;
         }
     >;
 
-    build(): ServiceContainer<Services, Prettify<ContainerServices>>;
+    build(): ServiceContainer<ContextServices, Pretty<Services>>;
 }
 
 export class ServiceContainerBuilderImpl<
-    Services extends ServiceInstanceRecord,
-    ContainerServices extends Record<PropertyKey, ContainerServiceInfo> = {},
-> implements ServiceContainerBuilder<Services, ContainerServices> {
-    private readonly _context: ServiceContext<Services>;
-    private readonly _impl: Record<PropertyKey, ContainerServiceInfo>;
+    ContextServices extends InstanceRecord,
+    Services extends Record<PropertyKey, ServiceInfo> = {},
+> implements ServiceContainerBuilder<ContextServices, Services> {
+    private readonly _context: ServiceContext<ContextServices>;
+    private readonly _impl: Record<PropertyKey, ServiceInfo>;
 
     private readonly _resolvers: Map<PropertyKey, () => unknown>;
 
     constructor(
-        context: ServiceContext<Services>,
-        impl: ContainerServices,
+        context: ServiceContext<ContextServices>,
+        impl: Services,
         resolvers: Map<PropertyKey, () => unknown> = new Map(),
     ) {
         this._context = context;
@@ -140,26 +131,21 @@ export class ServiceContainerBuilderImpl<
     }
 
     ctor<
-        const K extends keyof Services,
-        const P extends ServiceConstructorWithArgKeys<
-            Constructor<Services[K]>,
-            MapToProperty<ContainerServices, "provider">,
-            KeyTupleForBroadenedValueTuple<
-                ConstructorOrFactoryMapToInstanceMap<
-                    MapToProperty<ContainerServices, "provider">
-                >,
-                ConstructorOrFactoryArgs<ConstructorOrFactory<Services[K]>>
-            >
+        const K extends keyof ContextServices,
+        const P extends CtorWithArgKeys<
+            Ctor<ContextServices[K]>,
+            MapToProperty<Services, "provider">,
+            KeysForValueTuple<Services, any>
         >,
-        const U extends ServiceScopeKey,
+        const U extends ScopeKey,
     >(
-        key: KeyIfNotExistingSingletonKey<ContainerServices, K>,
+        key: KeyIfExtensible<Services, K>,
         provider: P,
         scope: U,
     ): ServiceContainerBuilder<
-        Services,
-        Omit<ContainerServices, K> & {
-            [Key in K]: ContainerServiceInfo<P, "ctor", U>;
+        ContextServices,
+        Omit<Services, K> & {
+            [Key in K]: ServiceInfo<P, "ctor", U>;
         }
     > {
         if (this._impl[key] && this._impl[key].scope === SINGLETON) {
@@ -167,38 +153,33 @@ export class ServiceContainerBuilderImpl<
         }
         this._impl[key] = {
             provider,
-            scope: SERVICE_SCOPE_MAP[scope],
-            providerType: CTOR,
+            scope: SCOPE_MAP[scope],
+            providerKind: CTOR,
         };
         return this as ServiceContainerBuilder<
-            Services,
-            Omit<ContainerServices, K> & {
-                [Key in K]: ContainerServiceInfo<P, "ctor", U>;
+            ContextServices,
+            Omit<Services, K> & {
+                [Key in K]: ServiceInfo<P, "ctor", U>;
             }
         >;
     }
 
     factory<
-        const K extends keyof Services,
-        const P extends ServiceFactoryWithArgKeys<
-            Factory<Services[K]>,
-            MapToProperty<ContainerServices, "provider">,
-            KeyTupleForBroadenedValueTuple<
-                ConstructorOrFactoryMapToInstanceMap<
-                    MapToProperty<ContainerServices, "provider">
-                >,
-                ConstructorOrFactoryArgs<ConstructorOrFactory<Services[K]>>
-            >
+        const K extends keyof ContextServices,
+        const P extends FactoryWithArgKeys<
+            Factory<ContextServices[K]>,
+            MapToProperty<Services, "provider">,
+            KeysForValueTuple<Services, any>
         >,
-        const U extends ServiceScopeKey,
+        const U extends ScopeKey,
     >(
-        key: KeyIfNotExistingSingletonKey<ContainerServices, K>,
+        key: KeyIfExtensible<Services, K>,
         provider: P,
         scope: U,
     ): ServiceContainerBuilder<
-        Services,
-        Omit<ContainerServices, K> & {
-            [Key in K]: ContainerServiceInfo<P, "factory", U>;
+        ContextServices,
+        Omit<Services, K> & {
+            [Key in K]: ServiceInfo<P, "factory", U>;
         }
     > {
         if (this._impl[key] && this._impl[key].scope === SINGLETON) {
@@ -206,30 +187,30 @@ export class ServiceContainerBuilderImpl<
         }
         this._impl[key] = {
             provider,
-            scope: SERVICE_SCOPE_MAP[scope],
-            providerType: FACTORY,
+            scope: SCOPE_MAP[scope],
+            providerKind: FACTORY,
         };
         return this as ServiceContainerBuilder<
-            Services,
-            Omit<ContainerServices, K> & {
-                [Key in K]: ContainerServiceInfo<P, "factory", U>;
+            ContextServices,
+            Omit<Services, K> & {
+                [Key in K]: ServiceInfo<P, "factory", U>;
             }
         >;
     }
 
     instance<
-        const K extends keyof Services,
-        const I extends Services[K],
-        const U extends ServiceScopeKey,
+        const K extends keyof ContextServices,
+        const I extends ContextServices[K],
+        const U extends ScopeKey,
     >(
-        key: KeyIfNotExistingSingletonKey<ContainerServices, K>,
+        key: KeyIfExtensible<Services, K>,
         instance: I,
         scope: U,
     ): ServiceContainerBuilder<
-        Services,
-        Omit<ContainerServices, K> & {
-            [Key in K]: ContainerServiceInfo<
-                (() => I) & { [INJECTED]: []; [UN_SERVICE_PROVIDER]: true },
+        ContextServices,
+        Omit<Services, K> & {
+            [Key in K]: ServiceInfo<
+                (() => I) & { [INJECTED]: []; [PROVIDER]: true },
                 "factory",
                 U
             >;
@@ -241,16 +222,16 @@ export class ServiceContainerBuilderImpl<
         this._impl[key] = {
             provider: Object.assign(() => instance, {
                 [INJECTED]: [],
-                [UN_SERVICE_PROVIDER]: true,
+                [PROVIDER]: true,
             }) as any,
-            scope: SERVICE_SCOPE_MAP[scope],
-            providerType: FACTORY,
+            scope: SCOPE_MAP[scope],
+            providerKind: FACTORY,
         };
         return this as ServiceContainerBuilder<
-            Services,
-            Omit<ContainerServices, K> & {
-                [Key in K]: ContainerServiceInfo<
-                    (() => I) & { [INJECTED]: []; [UN_SERVICE_PROVIDER]: true },
+            ContextServices,
+            Omit<Services, K> & {
+                [Key in K]: ServiceInfo<
+                    (() => I) & { [INJECTED]: []; [PROVIDER]: true },
                     "factory",
                     U
                 >;
@@ -258,35 +239,35 @@ export class ServiceContainerBuilderImpl<
         >;
     }
 
-    build(): ServiceContainer<Services, Prettify<ContainerServices>> {
+    build(): ServiceContainer<ContextServices, Pretty<Services>> {
         return new ServiceContainerImpl(
             this._context,
-            this._impl as ContainerServices,
+            this._impl as Services,
             this._resolvers,
         );
     }
 }
 
 export interface ServiceContainer<
-    Services extends ServiceInstanceRecord,
-    ContainerServices extends Record<PropertyKey, ContainerServiceInfo>,
+    ContextServices extends InstanceRecord,
+    Services extends Record<PropertyKey, ServiceInfo>,
 > {
-    resolve<const K extends keyof Services>(key: K): Services[K];
-    child(): ServiceContainerBuilder<Services, ContainerServices>;
+    resolve<const K extends keyof ContextServices>(key: K): ContextServices[K];
+    child(): ServiceContainerBuilder<ContextServices, Services>;
 }
 
 export class ServiceContainerImpl<
-    Services extends ServiceInstanceRecord,
-    ContainerServices extends Record<PropertyKey, ContainerServiceInfo>,
-> implements ServiceContainer<Services, ContainerServices> {
-    private readonly _context: ServiceContext<Services>;
-    private readonly _impl: Record<PropertyKey, ContainerServiceInfo>;
+    ContextServices extends InstanceRecord,
+    Services extends Record<PropertyKey, ServiceInfo>,
+> implements ServiceContainer<ContextServices, Services> {
+    private readonly _context: ServiceContext<ContextServices>;
+    private readonly _impl: Record<PropertyKey, ServiceInfo>;
 
     private readonly _resolvers: Map<PropertyKey, () => unknown>;
 
     constructor(
-        context: ServiceContext<Services>,
-        impl: ContainerServices,
+        context: ServiceContext<ContextServices>,
+        impl: Services,
         resolvers: Map<PropertyKey, () => unknown> = new Map(),
     ) {
         this._context = context;
@@ -294,12 +275,12 @@ export class ServiceContainerImpl<
         this._resolvers = resolvers;
     }
 
-    resolve<const K extends keyof Services>(key: K): Services[K] {
+    resolve<const K extends keyof ContextServices>(key: K): ContextServices[K] {
         const resolver = this._ensureResolverCached(key);
-        return resolver() as Services[K];
+        return resolver() as ContextServices[K];
     }
 
-    child(): ServiceContainerBuilder<Services, ContainerServices> {
+    child(): ServiceContainerBuilder<ContextServices, Services> {
         const singletonResolvers = new Map<PropertyKey, () => unknown>();
         for (const [key, val] of Object.entries(this._impl)) {
             if (val.scope === SINGLETON) {
@@ -315,7 +296,7 @@ export class ServiceContainerImpl<
         return builder;
     }
 
-    private _ensureResolverCached<const K extends keyof Services>(
+    private _ensureResolverCached<const K extends keyof ContextServices>(
         key: K,
     ): () => unknown {
         const cached = this._resolvers.get(key);
@@ -328,23 +309,85 @@ export class ServiceContainerImpl<
         if (!deps) throw new DepsNotFoundError(key);
 
         const argResolvers = deps.map((k) =>
-            this._ensureResolverCached(k as keyof Services),
+            this._ensureResolverCached(k as keyof ContextServices),
         );
-        const resolveArgs = () => argResolvers.map((r) => r());
 
         let resolve: () => unknown;
-        if (impl.providerType === FACTORY) {
-            try {
-                resolve = () => (impl.provider as Factory)(...resolveArgs());
-            } catch {
-                throw new ProviderTypeError(key, "factory");
+
+        const isFactory = impl.providerKind === FACTORY;
+        const provider = impl.provider as any;
+
+        switch (argResolvers.length) {
+            case 0: {
+                resolve = isFactory ? () => provider() : () => new provider();
+                break;
             }
-        } else {
-            try {
+            case 1: {
+                const [r0] = argResolvers;
+                resolve = isFactory
+                    ? () => provider(r0())
+                    : () => new provider(r0());
+                break;
+            }
+            case 2: {
+                const [r0, r1] = argResolvers;
+                resolve = isFactory
+                    ? () => provider(r0(), r1())
+                    : () => new provider(r0(), r1());
+                break;
+            }
+            case 3: {
+                const [r0, r1, r2] = argResolvers;
+                resolve = isFactory
+                    ? () => provider(r0(), r1(), r2())
+                    : () => new provider(r0(), r1(), r2());
+                break;
+            }
+            case 4: {
+                const [r0, r1, r2, r3] = argResolvers;
+                resolve = isFactory
+                    ? () => provider(r0(), r1(), r2(), r3())
+                    : () => new provider(r0(), r1(), r2(), r3());
+                break;
+            }
+            case 5: {
+                const [r0, r1, r2, r3, r4] = argResolvers;
+                resolve = isFactory
+                    ? () => provider(r0(), r1(), r2(), r3(), r4())
+                    : () => new provider(r0(), r1(), r2(), r3(), r4());
+                break;
+            }
+            case 6: {
+                const [r0, r1, r2, r3, r4, r5] = argResolvers;
+                resolve = isFactory
+                    ? () => provider(r0(), r1(), r2(), r3(), r4(), r5())
+                    : () => new provider(r0(), r1(), r2(), r3(), r4(), r5());
+                break;
+            }
+            case 7: {
+                const [r0, r1, r2, r3, r4, r5, r6] = argResolvers;
+                resolve = isFactory
+                    ? // prettier-ignore
+                      () => provider(r0(), r1(), r2(), r3(), r4(), r5(), r6())
+                    : // prettier-ignore
+                      () => new provider(r0(), r1(), r2(), r3(), r4(), r5(), r6());
+                break;
+            }
+            case 8: {
+                const [r0, r1, r2, r3, r4, r5, r6, r7] = argResolvers;
+                resolve = isFactory
+                    ? // prettier-ignore
+                      () => provider(r0(), r1(), r2(), r3(), r4(), r5(), r6(), r7())
+                    : // prettier-ignore
+                      () => new provider(r0(), r1(), r2(), r3(), r4(), r5(), r6(), r7());
+                break;
+            }
+            default: {
                 resolve = () =>
-                    new (impl.provider as Constructor)(...resolveArgs());
-            } catch {
-                throw new ProviderTypeError(key, "class");
+                    isFactory
+                        ? () => provider(...argResolvers.map((r) => r()))
+                        : () => new provider(...argResolvers.map((r) => r()));
+                break;
             }
         }
 

@@ -1,28 +1,29 @@
-import { INJECTED, UN_SERVICE_PROVIDER } from "./const";
+import { INJECTED, PROVIDER } from "./const";
 import {
     ServiceContainerBuilder,
     ServiceContainerBuilderImpl,
 } from "./container";
 import {
-    Constructor,
-    ConstructorArgs,
-    ConstructorOrFactory,
-    ConstructorOrFactoryArgs,
+    Ctor,
+    CtorArgs,
+    Creator,
+    CreatorArgs,
     Factory,
     FactoryArgs,
-    KeyTupleForBroadenedValueTuple,
+    KeysForValueTuple,
     NewKey,
-    Prettify,
-    ServiceInstance,
-    ServiceInstanceRecord,
+    Pretty,
+    Instance,
+    InstanceRecord,
+    ProviderTag,
 } from "./global";
 
-export interface ServiceContextBuilder<S extends ServiceInstanceRecord = {}> {
+export interface ServiceContextBuilder<S extends InstanceRecord = {}> {
     forKey<const K extends PropertyKey>(
         key: NewKey<K, S>,
     ): {
         useType: <const T>() => ServiceContextBuilder<
-            Prettify<
+            Pretty<
                 S & {
                     [Key in K]: T;
                 }
@@ -34,15 +35,15 @@ export interface ServiceContextBuilder<S extends ServiceInstanceRecord = {}> {
         ...keys: K
     ): {
         withTypeMap: <
-            const M extends { [Key in K[number]]: ServiceInstance },
+            const M extends { [Key in K[number]]: Instance },
         >() => ServiceContextBuilder<M>;
     };
 
-    build(): ServiceContext<Prettify<S>>;
+    build(): ServiceContext<Pretty<S>>;
 }
 
 export class ServiceContextBuilderImpl<
-    S extends ServiceInstanceRecord = {},
+    S extends InstanceRecord = {},
 > implements ServiceContextBuilder<S> {
     _keys: Set<PropertyKey>;
 
@@ -54,7 +55,7 @@ export class ServiceContextBuilderImpl<
         key: NewKey<K, S>,
     ): {
         useType: <const T>() => ServiceContextBuilder<
-            Prettify<
+            Pretty<
                 S & {
                     [Key in K]: T;
                 }
@@ -65,7 +66,7 @@ export class ServiceContextBuilderImpl<
             useType: <const T>() => {
                 this._keys.add(key);
                 return this as ServiceContextBuilder<
-                    Prettify<
+                    Pretty<
                         S & {
                             [Key in K]: T;
                         }
@@ -79,12 +80,12 @@ export class ServiceContextBuilderImpl<
         ...keys: K
     ): {
         withTypeMap: <
-            const M extends { [Key in K[number]]: ServiceInstance },
+            const M extends { [Key in K[number]]: Instance },
         >() => ServiceContextBuilder<M>;
     } {
         return {
             withTypeMap: <
-                const M extends { [Key in K[number]]: ServiceInstance },
+                const M extends { [Key in K[number]]: Instance },
             >() => {
                 for (const key of keys) {
                     this._keys.add(key);
@@ -94,42 +95,36 @@ export class ServiceContextBuilderImpl<
         };
     }
 
-    build(): ServiceContext<Prettify<S>> {
+    build(): ServiceContext<Pretty<S>> {
         const keys = new Set(this._keys);
-        return new ServiceContextImpl<Prettify<S>>(keys);
+        return new ServiceContextImpl<Pretty<S>>(keys);
     }
 }
 
-export interface ServiceContext<S extends ServiceInstanceRecord = {}> {
+export interface ServiceContext<S extends InstanceRecord = {}> {
     inject<
-        const C extends ConstructorOrFactory,
-        const A extends KeyTupleForBroadenedValueTuple<
-            S,
-            ConstructorOrFactoryArgs<C>
-        >,
+        const C extends Creator,
+        const A extends KeysForValueTuple<S, CreatorArgs<C>>,
     >(
         provider: C,
-        ...args: ConstructorOrFactoryArgs<C> extends [] ? [args?: A] : [args: A]
-    ): C & { [INJECTED]: A; [UN_SERVICE_PROVIDER]: true };
+        ...args: CreatorArgs<C> extends [] ? [args?: A] : [args: A]
+    ): C & ProviderTag<A>;
 
     child(): ServiceContainerBuilder<S>;
 
     isProvider<
-        C extends ConstructorOrFactory,
-        const A extends KeyTupleForBroadenedValueTuple<
-            S,
-            ConstructorOrFactoryArgs<C>
-        >,
+        C extends Creator,
+        const A extends KeysForValueTuple<S, CreatorArgs<C>>,
     >(
         value: C,
-    ): value is C & { [INJECTED]: A; [UN_SERVICE_PROVIDER]: true };
+    ): value is C & ProviderTag<A>;
 }
 
 export class ServiceContextImpl<
-    S extends ServiceInstanceRecord = {},
+    S extends InstanceRecord = {},
 > implements ServiceContext<S> {
     _keys: Set<PropertyKey>;
-    _args: Map<ConstructorOrFactory, PropertyKey[]>;
+    _args: Map<Creator, PropertyKey[]>;
 
     constructor(keys: Set<PropertyKey>) {
         this._keys = keys;
@@ -137,20 +132,17 @@ export class ServiceContextImpl<
     }
 
     inject<
-        const C extends ConstructorOrFactory,
-        const A extends KeyTupleForBroadenedValueTuple<
-            S,
-            ConstructorOrFactoryArgs<C>
-        >,
+        const C extends Creator,
+        const A extends KeysForValueTuple<S, CreatorArgs<C>>,
     >(
         provider: C,
-        ...args: ConstructorOrFactoryArgs<C> extends [] ? [args?: A] : [args: A]
-    ): C & { [INJECTED]: A; [UN_SERVICE_PROVIDER]: true } {
+        ...args: CreatorArgs<C> extends [] ? [args?: A] : [args: A]
+    ): C & ProviderTag<A> {
         const argArr = (args[0] as A) ?? [];
         this._args.set(provider, argArr);
         return Object.assign(provider, {
             [INJECTED]: argArr,
-            [UN_SERVICE_PROVIDER]: true as const,
+            [PROVIDER]: true as const,
         });
     }
 
@@ -159,13 +151,10 @@ export class ServiceContextImpl<
     }
 
     isProvider<
-        C extends ConstructorOrFactory,
-        const A extends KeyTupleForBroadenedValueTuple<
-            S,
-            ConstructorOrFactoryArgs<C>
-        >,
-    >(value: C): value is C & { [INJECTED]: A; [UN_SERVICE_PROVIDER]: true } {
-        if (!(UN_SERVICE_PROVIDER in value)) return false;
+        C extends Creator,
+        const A extends KeysForValueTuple<S, CreatorArgs<C>>,
+    >(value: C): value is C & ProviderTag<A> {
+        if (!(PROVIDER in value)) return false;
         const args = this._args.get(value);
         if (!args) return false;
         return (
@@ -175,38 +164,20 @@ export class ServiceContextImpl<
     }
 }
 
-export type ServiceConstructorWithArgKeys<
-    Provider extends Constructor = Constructor,
-    Context extends ServiceInstanceRecord = any,
-    Args extends KeyTupleForBroadenedValueTuple<
-        Context,
-        ConstructorArgs<Provider>
-    > = any,
-> = Provider & {
-    readonly [INJECTED]: Args;
-    readonly [UN_SERVICE_PROVIDER]: true;
-};
+export type CtorWithArgKeys<
+    Provider extends Ctor = Ctor,
+    Context extends InstanceRecord = any,
+    Args extends KeysForValueTuple<Context, CtorArgs<Provider>> = any,
+> = Provider & ProviderTag<Args>;
 
-export type ServiceFactoryWithArgKeys<
+export type FactoryWithArgKeys<
     Provider extends Factory = Factory,
-    Context extends ServiceInstanceRecord = any,
-    Args extends KeyTupleForBroadenedValueTuple<
-        Context,
-        FactoryArgs<Provider>
-    > = any,
-> = Provider & {
-    readonly [INJECTED]: Args;
-    readonly [UN_SERVICE_PROVIDER]: true;
-};
+    Context extends InstanceRecord = any,
+    Args extends KeysForValueTuple<Context, FactoryArgs<Provider>> = any,
+> = Provider & ProviderTag<Args>;
 
-export type ServiceProviderWithArgKeys<
-    Provider extends ConstructorOrFactory = ConstructorOrFactory,
-    Context extends ServiceInstanceRecord = any,
-    Args extends KeyTupleForBroadenedValueTuple<
-        Context,
-        ConstructorOrFactoryArgs<Provider>
-    > = any,
-> = Provider & {
-    readonly [INJECTED]: Args;
-    readonly [UN_SERVICE_PROVIDER]: true;
-};
+export type ProviderWithArgKeys<
+    Provider extends Creator = Creator,
+    Context extends InstanceRecord = any,
+    Args extends KeysForValueTuple<Context, CreatorArgs<Provider>> = any,
+> = Provider & ProviderTag<Args>;

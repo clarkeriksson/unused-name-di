@@ -1,22 +1,3 @@
-export class ProviderTypeError extends Error {
-    constructor(
-        key: PropertyKey,
-        expected: "class" | "factory",
-        options?: ErrorOptions,
-    ) {
-        super(
-            `could not locate a service with key '${String(key)}' and provider type ${expected}`,
-            options,
-        );
-        if (
-            "captureStackTrace" in Error &&
-            typeof Error["captureStackTrace"] === "function"
-        ) {
-            Error.captureStackTrace(this, ProviderTypeError);
-        }
-    }
-}
-
 export class DepsNotFoundError extends Error {
     constructor(key: PropertyKey, options?: ErrorOptions) {
         super(
