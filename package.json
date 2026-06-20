@@ -22,7 +22,7 @@
   ],
   "scripts": {
     "build": "vite build",
-    "test": "vitest"
+    "test": "vitest --reporter=tree"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

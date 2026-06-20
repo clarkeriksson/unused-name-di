@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { it, test, expect, describe } from "vitest";
+import { it, test, expect, describe, assertType } from "vitest";
 
 import { context } from "./context";
 import {
@@ -28,20 +28,28 @@ const di = context
     .factory("NameService", NameServiceFactory, "singleton")
     .build();
 
-test("service container is defined", () => expect(di).toBeDefined());
+describe("Container Initialization", () => {
+    it("should create a defined container", () => expect(di).toBeDefined());
+});
 
 describe("Transient Service Resolution", () => {
     const resolvedFileService0 = di.resolve("FileService0");
 
-    it("should resolve a transient service to a defined value", () =>
+    it("should resolve a defined service instance", () =>
         expect(resolvedFileService0).toBeDefined());
 
     const anotherResolvedFileService0 = di.resolve("FileService0");
 
-    it("should resolve transient services as a unique instance per resolution", () =>
+    it("should resolve to different instances within a container", () =>
         expect(resolvedFileService0).not.toBe(anotherResolvedFileService0));
 
-    it("should resolve transient service dependencies", () => {
+    const child = di.scope();
+    const childResolvedFileService0 = child.resolve("FileService0");
+
+    it("should resolve to different instances between containers", () =>
+        expect(resolvedFileService0).not.toBe(childResolvedFileService0));
+
+    it("should resolve defined service dependencies", () => {
         expect(resolvedFileService0.date).toBeInstanceOf(DateService);
         expect(resolvedFileService0.image).toBeInstanceOf(ImageService);
         expect(resolvedFileService0.video).toBeInstanceOf(VideoService);
@@ -51,46 +59,46 @@ describe("Transient Service Resolution", () => {
 describe("Scoped Service Resolution", () => {
     const resolvedImageService = di.resolve("ImageService");
 
-    it("should resolve a scoped service to a defined value", () =>
+    it("should resolve a defined service instance", () =>
         expect(resolvedImageService).toBeDefined());
 
     const anotherResolvedImageService = di.resolve("ImageService");
 
-    it("should resolve scoped services as the same instance per resolution", () =>
+    it("should resolve to the same instance within a container", () =>
         expect(resolvedImageService).toBe(anotherResolvedImageService));
 
-    it("should resolve scoped service dependencies", () => {
+    const child = di.scope();
+    const childResolvedImageService = child.resolve("ImageService");
+
+    it("should resolve to different instances between containers", () =>
+        expect(childResolvedImageService).not.toBe(resolvedImageService));
+
+    it("should resolve defined service dependencies", () => {
         expect(resolvedImageService.pxWidth).toBeTypeOf("number");
         expect(resolvedImageService.video).toBeInstanceOf(VideoService);
     });
-
-    const child = di.child().build();
-    const childResolvedImageService = child.resolve("ImageService");
-
-    it("should resolve scoped services as different instances in different containers", () =>
-        expect(childResolvedImageService).not.toBe(resolvedImageService));
 });
 
 describe("Singleton Service Resolution", () => {
     const resolvedVideoService = di.resolve("VideoService");
 
-    it("should resolve a singleton service to a defined value", () =>
+    it("should resolve a defined service instance", () =>
         expect(resolvedVideoService).toBeDefined());
 
     const anotherResolvedVideoService = di.resolve("VideoService");
 
-    it("should resolve singleton services as the same instance per resolution", () =>
+    it("should resolve to the same instance within a container", () =>
         expect(resolvedVideoService).toBe(anotherResolvedVideoService));
 
-    it("should resolve singleton service dependencies", () => {
-        expect(resolvedVideoService.date).toBeInstanceOf(DateService);
-    });
-
-    const child = di.child().build();
+    const child = di.scope();
     const childResolvedVideoService = child.resolve("VideoService");
 
-    it("should resolve scoped services as the same instance in different containers", () =>
+    it("should resolve to the same instance between containers", () =>
         expect(childResolvedVideoService).toBe(resolvedVideoService));
+
+    it("should resolve defined service dependencies", () => {
+        expect(resolvedVideoService.date).toBeInstanceOf(DateService);
+    });
 });
 
 test("services registered by implementation alone work", () => {
@@ -127,7 +135,7 @@ test("child initializes properly", () => {
 });
 
 test("singleton services are identical across containers", () => {
-    const child = di.child().build();
+    const child = di.scope();
 
     const rootFileService = di.resolve("GlobalConfig");
     const scopedFileService = child.resolve("GlobalConfig");
@@ -136,7 +144,7 @@ test("singleton services are identical across containers", () => {
 });
 
 test("scoped services are different across containers", () => {
-    const child = di.child().build();
+    const child = di.scope();
 
     const rootImage = di.resolve("ImageService");
     const childImage = child.resolve("ImageService");

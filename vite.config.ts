@@ -7,20 +7,23 @@ export default defineConfig({
         dts({
             tsconfigPath: "./tsconfig.build.json",
             entryRoot: "src",
-            outDir: "dist"
-        })
+            outDir: "dist",
+        }),
     ],
     build: {
         lib: {
             formats: ["es"],
-            entry: ["src/index.ts"]
+            entry: ["src/index.ts"],
         },
-        outDir: "./dist/"
+        outDir: "./dist/",
     },
     test: {
-        "environment": "node",
-        include: ["*.test.ts"],
+        environment: "node",
         dir: "tests",
-        setupFiles: ["tests/setup.ts"]
-    }
-})
+        setupFiles: ["tests/setup.ts"],
+        typecheck: {
+            enabled: true,
+            include: ["**/*.test-d.ts"],
+        },
+    },
+});

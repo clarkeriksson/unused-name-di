@@ -24,9 +24,6 @@ import {
 } from "./errors";
 import {
     Ctor,
-    Creator,
-    CreatorArgs,
-    CreatorMapToInstanceMap,
     Factory,
     KeyIfExtensible,
     KeysForValueTuple,
@@ -254,6 +251,7 @@ export interface ServiceContainer<
 > {
     resolve<const K extends keyof ContextServices>(key: K): ContextServices[K];
     child(): ServiceContainerBuilder<ContextServices, Services>;
+    scope(): ServiceContainer<ContextServices, Services>;
 }
 
 export class ServiceContainerImpl<
@@ -294,6 +292,10 @@ export class ServiceContainerImpl<
             singletonResolvers,
         );
         return builder;
+    }
+
+    scope(): ServiceContainer<ContextServices, Services> {
+        return this.child().build();
     }
 
     private _ensureResolverCached<const K extends keyof ContextServices>(

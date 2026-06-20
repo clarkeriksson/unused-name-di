@@ -11,12 +11,13 @@ export interface NameService {
     chat: ChatService;
 }
 
-export const NameServiceFactory = context.inject(
-    (chat: ChatService): NameService => {
-        return { chat };
-    },
-    ["ChatService"],
-);
+function NameServiceImplFactory(chat: ChatService): NameService {
+    return { chat };
+}
+
+export const NameServiceFactory = context.inject(NameServiceImplFactory, [
+    "ChatService",
+]);
 
 export interface DateService {
     scopeDate(): Date;

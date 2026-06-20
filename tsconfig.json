@@ -14,6 +14,6 @@
         "noEmit": true,
         "lib": ["es2022", "ESNext.Disposable", "DOM"]
     },
-    "include": ["src_ref/**/*.ts", "test/**/*.test.ts", "vite.config.ts"],
+    "include": ["src_ref/**/*.ts", "test/**/*.test.ts", "test/**/*.test-d.ts", "vite.config.ts"],
     "exclude": ["dist"]
 }
