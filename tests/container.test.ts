@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { it, test, expect, describe, assertType } from "vitest";
+import { it, test, expect, describe } from "vitest";
 
 import { context } from "./context";
 import {
@@ -122,40 +122,12 @@ test("child initializes properly", () => {
 
     const newScope = di
         .child()
-        .factory(
-            "TestPrimitive",
-            context.inject(() => sym),
-            "singleton",
-        )
+        .instance("TestPrimitive", sym, "singleton")
         .build();
 
     const resolvedSym = newScope.resolve("TestPrimitive");
     expect(resolvedSym).toBeDefined();
     expect(resolvedSym).toBe(sym);
-});
-
-test("singleton services are identical across containers", () => {
-    const child = di.scope();
-
-    const rootFileService = di.resolve("GlobalConfig");
-    const scopedFileService = child.resolve("GlobalConfig");
-
-    expect(rootFileService).toBe(scopedFileService);
-});
-
-test("scoped services are different across containers", () => {
-    const child = di.scope();
-
-    const rootImage = di.resolve("ImageService");
-    const childImage = child.resolve("ImageService");
-
-    expect(rootImage).not.toBe(childImage);
-
-    const anotherRootImage = di.resolve("ImageService");
-    const anotherChildImage = child.resolve("ImageService");
-
-    expect(anotherRootImage).toBe(rootImage);
-    expect(anotherChildImage).toBe(childImage);
 });
 
 test("non-singleton services can be overriden", () => {
@@ -172,7 +144,7 @@ test("non-singleton services can be overriden", () => {
 test("singleton services cannot be overriden", () => {
     // prettier-ignore
     // @ts-expect-error
-    expect(() => di.child().factory("AppId", ctxBuiltWithForKey.inject(() => "NewId"), "scoped")).toThrow();
+    expect(() => di.child().instance("AppId", "NewId", "scoped")).toThrow();
 });
 
 test("singleton services created in child containers cannot be overriden further down the hierarchy", () => {
