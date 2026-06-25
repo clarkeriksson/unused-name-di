@@ -2,20 +2,20 @@ import {
     INJECTED,
     CTOR,
     FACTORY,
-    ProviderKindKey,
-    ProviderKindFromKey,
+    type ProviderKindKey,
+    type ProviderKindFromKey,
     SCOPE_MAP,
-    ScopeKey,
-    ScopeTokenFromKey,
+    type ScopeKey,
+    type ScopeTokenFromKey,
     SINGLETON,
     TRANSIENT,
     PROVIDER,
 } from "./const";
 import {
-    CtorWithArgKeys,
-    ServiceContext,
-    FactoryWithArgKeys,
-    ProviderWithArgKeys,
+    type CtorWithArgKeys,
+    type ServiceContext,
+    type FactoryWithArgKeys,
+    type ProviderWithArgKeys,
 } from "./context";
 import {
     DepsNotFoundError,
@@ -23,15 +23,15 @@ import {
     SingletonOverrideError,
 } from "./errors";
 import {
-    Ctor,
-    Factory,
-    KeyIfExtensible,
-    KeysForValueTuple,
-    MapToProperty,
-    Pretty,
-    InstanceRecord,
-    ProviderTag,
-    BroadenPrimitiveConst,
+    type Ctor,
+    type Factory,
+    type KeyIfExtensible,
+    type KeysForValueTuple,
+    type MapToProperty,
+    type Pretty,
+    type InstanceRecord,
+    type ProviderTag,
+    type BroadenPrimitiveConst,
 } from "./global";
 
 export interface ServiceInfo<
@@ -115,16 +115,16 @@ export class ServiceContainerBuilderImpl<
     private readonly _context: ServiceContext<ContextServices>;
     private readonly _impl: Record<PropertyKey, ServiceInfo>;
 
-    private readonly _resolvers: Map<PropertyKey, () => unknown>;
+    private readonly _resolvers: Record<PropertyKey, () => unknown>;
 
     constructor(
         context: ServiceContext<ContextServices>,
         impl: Services,
-        resolvers: Map<PropertyKey, () => unknown> = new Map(),
+        resolvers?: Record<PropertyKey, () => unknown>,
     ) {
         this._context = context;
         this._impl = impl;
-        this._resolvers = resolvers;
+        this._resolvers = resolvers ?? {};
     }
 
     ctor<
@@ -261,29 +261,27 @@ export class ServiceContainerImpl<
     private readonly _context: ServiceContext<ContextServices>;
     private readonly _impl: Record<PropertyKey, ServiceInfo>;
 
-    private readonly _resolvers: Map<PropertyKey, () => unknown>;
+    private readonly _resolvers: Record<PropertyKey, () => unknown>;
 
     constructor(
         context: ServiceContext<ContextServices>,
         impl: Services,
-        resolvers: Map<PropertyKey, () => unknown> = new Map(),
+        resolvers?: Record<PropertyKey, () => unknown>,
     ) {
         this._context = context;
         this._impl = impl;
-        this._resolvers = resolvers;
+        this._resolvers = resolvers ?? {};
     }
 
     resolve<const K extends keyof ContextServices>(key: K): ContextServices[K] {
-        const resolver = this._ensureResolverCached(key);
-        return resolver() as ContextServices[K];
+        return this._ensureResolverCached(key)();
     }
 
     child(): ServiceContainerBuilder<ContextServices, Services> {
-        const singletonResolvers = new Map<PropertyKey, () => unknown>();
+        const singletonResolvers: Record<PropertyKey, () => unknown> = {};
         for (const [key, val] of Object.entries(this._impl)) {
             if (val.scope === SINGLETON) {
-                const resolver = this._ensureResolverCached(key as any);
-                singletonResolvers.set(key, resolver);
+                singletonResolvers[key] = this._ensureResolverCached(key);
             }
         }
         const builder = new ServiceContainerBuilderImpl(
@@ -300,8 +298,8 @@ export class ServiceContainerImpl<
 
     private _ensureResolverCached<const K extends keyof ContextServices>(
         key: K,
-    ): () => unknown {
-        const cached = this._resolvers.get(key);
+    ): () => ContextServices[K] {
+        const cached = this._resolvers[key];
         if (cached) return cached as any;
 
         const impl = this._impl[key];
@@ -314,61 +312,61 @@ export class ServiceContainerImpl<
             this._ensureResolverCached(k as keyof ContextServices),
         );
 
-        let resolve: () => unknown;
+        let construct: () => ContextServices[K];
 
         const isFactory = impl.providerKind === FACTORY;
         const provider = impl.provider as any;
 
         switch (argResolvers.length) {
             case 0: {
-                resolve = isFactory ? () => provider() : () => new provider();
+                construct = isFactory ? () => provider() : () => new provider();
                 break;
             }
             case 1: {
                 const [r0] = argResolvers;
-                resolve = isFactory
+                construct = isFactory
                     ? () => provider(r0())
                     : () => new provider(r0());
                 break;
             }
             case 2: {
                 const [r0, r1] = argResolvers;
-                resolve = isFactory
+                construct = isFactory
                     ? () => provider(r0(), r1())
                     : () => new provider(r0(), r1());
                 break;
             }
             case 3: {
                 const [r0, r1, r2] = argResolvers;
-                resolve = isFactory
+                construct = isFactory
                     ? () => provider(r0(), r1(), r2())
                     : () => new provider(r0(), r1(), r2());
                 break;
             }
             case 4: {
                 const [r0, r1, r2, r3] = argResolvers;
-                resolve = isFactory
+                construct = isFactory
                     ? () => provider(r0(), r1(), r2(), r3())
                     : () => new provider(r0(), r1(), r2(), r3());
                 break;
             }
             case 5: {
                 const [r0, r1, r2, r3, r4] = argResolvers;
-                resolve = isFactory
+                construct = isFactory
                     ? () => provider(r0(), r1(), r2(), r3(), r4())
                     : () => new provider(r0(), r1(), r2(), r3(), r4());
                 break;
             }
             case 6: {
                 const [r0, r1, r2, r3, r4, r5] = argResolvers;
-                resolve = isFactory
+                construct = isFactory
                     ? () => provider(r0(), r1(), r2(), r3(), r4(), r5())
                     : () => new provider(r0(), r1(), r2(), r3(), r4(), r5());
                 break;
             }
             case 7: {
                 const [r0, r1, r2, r3, r4, r5, r6] = argResolvers;
-                resolve = isFactory
+                construct = isFactory
                     ? // prettier-ignore
                       () => provider(r0(), r1(), r2(), r3(), r4(), r5(), r6())
                     : // prettier-ignore
@@ -377,7 +375,7 @@ export class ServiceContainerImpl<
             }
             case 8: {
                 const [r0, r1, r2, r3, r4, r5, r6, r7] = argResolvers;
-                resolve = isFactory
+                construct = isFactory
                     ? // prettier-ignore
                       () => provider(r0(), r1(), r2(), r3(), r4(), r5(), r6(), r7())
                     : // prettier-ignore
@@ -385,23 +383,22 @@ export class ServiceContainerImpl<
                 break;
             }
             default: {
-                resolve = () =>
-                    isFactory
-                        ? () => provider(...argResolvers.map((r) => r()))
-                        : () => new provider(...argResolvers.map((r) => r()));
+                construct = isFactory
+                    ? () => provider(...argResolvers.map((r) => r()))
+                    : () => new provider(...argResolvers.map((r) => r()));
                 break;
             }
         }
 
         const resolver =
             impl.scope === TRANSIENT
-                ? resolve
+                ? construct
                 : (() => {
-                      const instance = resolve();
+                      const instance = construct();
                       return () => instance;
                   })();
 
-        this._resolvers.set(key, resolver);
+        this._resolvers[key] = resolver;
         return resolver;
     }
 }

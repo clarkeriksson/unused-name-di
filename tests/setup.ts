@@ -90,16 +90,24 @@ export interface FileService {
     readonly date: DateService;
     readonly image: ImageService;
     readonly video: VideoService;
+    readonly px: number;
 }
 
 class FileService0Impl implements FileService {
     readonly date: DateService;
     readonly image: ImageService;
     readonly video: VideoService;
-    constructor(image: ImageService, video: VideoService, date: DateService) {
+    readonly px: number;
+    constructor(
+        image: ImageService,
+        video: VideoService,
+        date: DateService,
+        px: number,
+    ) {
         this.date = date;
         this.image = image;
         this.video = video;
+        this.px = px;
     }
 }
 
@@ -107,16 +115,24 @@ export const FileService0 = context.inject(FileService0Impl, [
     "ImageService",
     "VideoService",
     "DateService",
+    "PixelWidth",
 ]);
 
 class FileService1Impl implements FileService {
     readonly date: DateService;
     readonly image: ImageService;
     readonly video: VideoService;
-    constructor(image: ImageService, video: VideoService, date: DateService) {
+    readonly px: number;
+    constructor(
+        image: ImageService,
+        video: VideoService,
+        date: DateService,
+        px: number,
+    ) {
         this.date = date;
         this.image = image;
         this.video = video;
+        this.px = px;
     }
 }
 
@@ -124,6 +140,7 @@ export const FileService1 = context.inject(FileService1Impl, [
     "ImageService",
     "VideoService",
     "DateService",
+    "PixelWidth",
 ]);
 
 class ImageServiceNewImpl implements ImageService {

@@ -1,9 +1,21 @@
 {
     "extends": "./tsconfig.json",
     "compilerOptions": {
+        "noErrorTruncation": true,
+        "target": "es2022",
+        "module": "esnext",
+        "moduleResolution": "bundler",
+        "allowImportingTsExtensions": false,
+        "allowArbitraryExtensions": true,
+        "isolatedModules": true,
+        "allowSyntheticDefaultImports": true,
+        "esModuleInterop": true,
+        "forceConsistentCasingInFileNames": true,
+        "strict": true,
         "noEmit": false,
         "declaration": true,
-        "rootDir": "src"
+        "rootDir": "src",
+        "lib": ["es2022", "ESNext.Disposable", "DOM"]
     },
     "include": ["src/**/*.ts"]
 }

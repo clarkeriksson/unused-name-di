@@ -1,19 +1,7 @@
 {
-    "compilerOptions": {
-        "noErrorTruncation": true,
-        "target": "es2022" /* Set the JavaScript language version for emitted JavaScript and include compatible library declarations. */,
-        "module": "esnext" /* Specify what module code is generated. */,
-        "moduleResolution": "bundler" /* Specify how TypeScript looks up a file from a given module specifier. */,
-        "allowImportingTsExtensions": false /* Allow imports to include TypeScript file extensions. Requires '--moduleResolution bundler' and either '--noEmit' or '--emitDeclarationOnly' to be set. */,
-        "allowArbitraryExtensions": true /* Enable importing files with any extension, provided a declaration file is present. */ /* Specify an output folder for all emitted files. */,
-        "isolatedModules": true /* Ensure that each file can be safely transpiled without relying on other imports. */,
-        "allowSyntheticDefaultImports": true /* Allow 'import x from y' when a module doesn't have a default export. */,
-        "esModuleInterop": true /* Emit additional JavaScript to ease support for importing CommonJS modules. This enables 'allowSyntheticDefaultImports' for type compatibility. */,
-        "forceConsistentCasingInFileNames": true /* Ensure that casing is correct in imports. */,
-        "strict": true /* Enable all strict type-checking options. */,
-        "noEmit": true,
-        "lib": ["es2022", "ESNext.Disposable", "DOM"]
-    },
-    "include": ["src_ref/**/*.ts", "test/**/*.test.ts", "test/**/*.test-d.ts", "vite.config.ts"],
-    "exclude": ["dist"]
+    "files": [],
+    "references": [
+        { "path": "./tsconfig.build.json" },
+        { "path": "./tsconfig.node.json" }
+    ]
 }

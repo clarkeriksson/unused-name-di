@@ -1,5 +1,10 @@
-import { INJECTED, PROVIDER, ProviderKindKey, ScopeKey } from "./const";
-import { ServiceInfo } from "./container";
+import {
+    INJECTED,
+    PROVIDER,
+    type ProviderKindKey,
+    type ScopeKey,
+} from "./const";
+import { type ServiceInfo } from "./container";
 
 /**
  * Type improving the mouseover preview of the argument type.
