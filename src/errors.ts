@@ -2,8 +2,8 @@ export class DepsNotFoundError extends Error {
 	constructor(key: PropertyKey) {
 		super(
 			`could not find the dependencies of the service with key '${String(
-				key
-			)}'`
+				key,
+			)}'`,
 		);
 		if (
 			"captureStackTrace" in Error &&
@@ -30,14 +30,28 @@ export class SingletonOverrideError extends Error {
 	constructor(key: PropertyKey) {
 		super(
 			`attempted to override a singleton service with key '${String(
-				key
-			)}'`
+				key,
+			)}'`,
 		);
 		if (
 			"captureStackTrace" in Error &&
 			typeof Error["captureStackTrace"] === "function"
 		) {
 			Error.captureStackTrace(this, SingletonOverrideError);
+		}
+	}
+}
+
+export class KeyReuseError extends Error {
+	constructor(key: PropertyKey) {
+		super(
+			`attempted to add the key '${String(key)}' to a service context more than once`,
+		);
+		if (
+			"captureStackTrace" in Error &&
+			typeof Error["captureStackTrace"] === "function"
+		) {
+			Error.captureStackTrace(this, KeyReuseError);
 		}
 	}
 }

@@ -1,8 +1,8 @@
 import {
-    INJECTED,
-    PROVIDER,
-    type ProviderKindKey,
-    type ScopeKey,
+	INJECTED,
+	PROVIDER,
+	type ProviderKindKey,
+	type ScopeKey,
 } from "./const";
 import { type ServiceInfo } from "./container";
 
@@ -25,14 +25,14 @@ export declare type InstanceRecord = Record<PropertyKey, Instance>;
 export declare type BroadenPrimitiveConst<T> = T extends string
 	? string
 	: T extends number
-	? number
-	: T extends boolean
-	? boolean
-	: T extends symbol
-	? symbol
-	: T extends bigint
-	? bigint
-	: T;
+		? number
+		: T extends boolean
+			? boolean
+			: T extends symbol
+				? symbol
+				: T extends bigint
+					? bigint
+					: T;
 
 /**
  * Type representing the constructor of instance type {@link T} that takes inputs of type {@link Args}.
@@ -41,7 +41,7 @@ export declare type BroadenPrimitiveConst<T> = T extends string
  */
 export declare type Ctor<
 	T = unknown,
-	Args extends readonly any[] = readonly any[]
+	Args extends readonly any[] = readonly any[],
 > = new (...args: Args) => T;
 
 /**
@@ -51,40 +51,36 @@ export declare type Ctor<
  */
 export declare type Factory<
 	T = unknown,
-	Args extends readonly any[] = readonly any[]
+	Args extends readonly any[] = readonly any[],
 > = (...args: Args) => T;
 
 /**
  * Type extracting the arguments from {@link Ctor} type {@link T}.
  * @param T
  */
-export declare type CtorArgs<T> = T extends Ctor<any, infer Args>
-	? Args
-	: never;
+export declare type CtorArgs<T> =
+	T extends Ctor<any, infer Args> ? Args : never;
 
 /**
  * Type extracting the arguments from {@link Factory} type {@link T}.
  * @param T
  */
-export declare type FactoryArgs<T> = T extends Factory<any, infer Args>
-	? Args
-	: never;
+export declare type FactoryArgs<T> =
+	T extends Factory<any, infer Args> ? Args : never;
 
 /**
  * Type extracting the return type from {@link Ctor} type {@link T}.
  * @param T
  */
-export declare type CtorReturn<T> = T extends Ctor<infer Return, any>
-	? Return
-	: never;
+export declare type CtorReturn<T> =
+	T extends Ctor<infer Return, any> ? Return : never;
 
 /**
  * Type extracting the return type from {@link Factory} type {@link T}.
  * @param T
  */
-export declare type FactoryReturn<T> = T extends Factory<infer Return, any>
-	? Return
-	: never;
+export declare type FactoryReturn<T> =
+	T extends Factory<infer Return, any> ? Return : never;
 
 /**
  * Type representing the constructor or factory of instance type {@link T} that takes inputs of type {@link Args}.
@@ -102,8 +98,8 @@ export declare type Creator<T = unknown, Args extends readonly any[] = any[]> =
 export declare type CreatorArgs<T> = T extends Ctor
 	? CtorArgs<T>
 	: T extends Factory
-	? FactoryArgs<T>
-	: never;
+		? FactoryArgs<T>
+		: never;
 
 /**
  * Type extracting the return type from {@link Ctor} or {@link Factory} type {@link T}.
@@ -112,15 +108,15 @@ export declare type CreatorArgs<T> = T extends Ctor
 export declare type CreatorReturn<T> = T extends Ctor
 	? CtorReturn<T>
 	: T extends Factory
-	? FactoryReturn<T>
-	: never;
+		? FactoryReturn<T>
+		: never;
 
 /**
  * Type that transforms a {@link Record} type with {@link Creator} values into a {@link Record} type with {@link CreatorReturn} values.
  * @param T The {@link Record} type with {@link Creator} values to convert.
  */
 export declare type CreatorMapToInstanceMap<
-	T extends Record<PropertyKey, Creator>
+	T extends Record<PropertyKey, Creator>,
 > = {
 	[K in keyof T]: CreatorReturn<T[K]>;
 };
@@ -132,7 +128,7 @@ export declare type CreatorMapToInstanceMap<
  */
 export declare type KeysForValueTuple<
 	T extends Record<PropertyKey, unknown>,
-	V extends readonly any[]
+	V extends readonly any[],
 > = {
 	[I in keyof V]: {
 		[K in keyof T]: BroadenPrimitiveConst<T[K]> extends V[I] ? K : never;
@@ -155,13 +151,9 @@ export declare type MapToProperty<T, K extends keyof T[keyof T]> = {
  */
 export declare type KeysForScope<
 	Services extends Record<PropertyKey, ServiceInfo>,
-	Scope extends ScopeKey
+	Scope extends ScopeKey,
 > = {
-	[Key in keyof Services]: Services[Key] extends ServiceInfo<
-		any,
-		ProviderKindKey,
-		Scope
-	>
+	[Key in keyof Services]: Services[Key] extends ServiceInfo<any, Scope>
 		? Key
 		: never;
 }[keyof Services];
@@ -173,7 +165,7 @@ export declare type KeysForScope<
  */
 export declare type KeyIfExtensible<
 	Services extends Record<PropertyKey, ServiceInfo>,
-	Key extends PropertyKey
+	Key extends PropertyKey,
 > = Key extends KeysForScope<Services, "singleton"> ? never : Key;
 
 /**
@@ -183,7 +175,7 @@ export declare type KeyIfExtensible<
  */
 export declare type NewKey<
 	K extends PropertyKey,
-	Services extends Record<PropertyKey, unknown>
+	Services extends Record<PropertyKey, unknown>,
 > = K extends keyof Services ? never : K;
 
 /**

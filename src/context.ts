@@ -3,6 +3,7 @@ import {
 	ServiceContainerBuilder,
 	ServiceContainerBuilderImpl,
 } from "./container";
+import { KeyReuseError } from "./errors";
 import {
 	Ctor,
 	CtorArgs,
@@ -13,85 +14,36 @@ import {
 	KeysForValueTuple,
 	NewKey,
 	Pretty,
-	Instance,
 	InstanceRecord,
 	ProviderTag,
 } from "./global";
 
 export interface ServiceContextBuilder<S extends InstanceRecord = {}> {
-	forKey<const K extends PropertyKey>(
-		key: NewKey<K, S>
-	): {
-		useType: <const T>() => ServiceContextBuilder<
-			Pretty<
-				S & {
-					[Key in K]: T;
-				}
-			>
-		>;
-	};
-
-	useKeys<const K extends readonly PropertyKey[]>(
-		...keys: K
-	): {
-		withTypeMap: <
-			const M extends { [Key in K[number]]: Instance }
-		>() => ServiceContextBuilder<M>;
-	};
+	service<const T>(): <const K extends PropertyKey>(
+		key: NewKey<K, S>,
+	) => ServiceContextBuilder<Pretty<S & { [Key in K]: T }>>;
 
 	build(): ServiceContext<Pretty<S>>;
 }
 
-export class ServiceContextBuilderImpl<S extends InstanceRecord = {}>
-	implements ServiceContextBuilder<S>
-{
+export class ServiceContextBuilderImpl<
+	S extends InstanceRecord = {},
+> implements ServiceContextBuilder<S> {
 	_keys: Set<PropertyKey>;
 
 	constructor() {
 		this._keys = new Set();
 	}
 
-	forKey<const K extends PropertyKey>(
-		key: NewKey<K, S>
-	): {
-		useType: <const T>() => ServiceContextBuilder<
-			Pretty<
-				S & {
-					[Key in K]: T;
-				}
-			>
-		>;
-	} {
-		return {
-			useType: <const T>() => {
-				this._keys.add(key);
-				return this as ServiceContextBuilder<
-					Pretty<
-						S & {
-							[Key in K]: T;
-						}
-					>
-				>;
-			},
-		};
-	}
-
-	useKeys<const K extends readonly PropertyKey[]>(
-		...keys: K
-	): {
-		withTypeMap: <
-			const M extends { [Key in K[number]]: Instance }
-		>() => ServiceContextBuilder<M>;
-	} {
-		return {
-			withTypeMap: <
-				const M extends { [Key in K[number]]: Instance }
-			>() => {
-				for (const key of keys) {
-					this._keys.add(key);
-				}
-				return this as unknown as ServiceContextBuilder<M>;
-			},
+	service<const T>(): <const K extends PropertyKey>(
+		key: NewKey<K, S>,
+	) => ServiceContextBuilder<Pretty<S & { [Key in K]: T }>> {
+		return <const K extends PropertyKey>(key: NewKey<K, S>) => {
+			if (this._keys.has(key)) {
+				throw new KeyReuseError(key);
+			}
+			this._keys.add(key);
+			return this as ServiceContextBuilder<Pretty<S & { [Key in K]: T }>>;
 		};
 	}
 
@@ -104,7 +56,7 @@ export class ServiceContextBuilderImpl<S extends InstanceRecord = {}>
 export interface ServiceContext<S extends InstanceRecord = {}> {
 	inject<
 		const C extends Creator,
-		const A extends KeysForValueTuple<S, CreatorArgs<C>>
+		const A extends KeysForValueTuple<S, CreatorArgs<C>>,
 	>(
 		provider: C,
 		...args: CreatorArgs<C> extends [] ? [args?: A] : [args: A]
@@ -114,15 +66,15 @@ export interface ServiceContext<S extends InstanceRecord = {}> {
 
 	isProvider<
 		C extends Creator,
-		const A extends KeysForValueTuple<S, CreatorArgs<C>>
+		const A extends KeysForValueTuple<S, CreatorArgs<C>>,
 	>(
-		value: C
+		value: C,
 	): value is C & ProviderTag<A>;
 }
 
-export class ServiceContextImpl<S extends InstanceRecord = {}>
-	implements ServiceContext<S>
-{
+export class ServiceContextImpl<
+	S extends InstanceRecord = {},
+> implements ServiceContext<S> {
 	_keys: Set<PropertyKey>;
 	_args: Map<Creator, PropertyKey[]>;
 
@@ -133,7 +85,7 @@ export class ServiceContextImpl<S extends InstanceRecord = {}>
 
 	inject<
 		const C extends Creator,
-		const A extends KeysForValueTuple<S, CreatorArgs<C>>
+		const A extends KeysForValueTuple<S, CreatorArgs<C>>,
 	>(
 		provider: C,
 		...args: CreatorArgs<C> extends [] ? [args?: A] : [args: A]
@@ -152,7 +104,7 @@ export class ServiceContextImpl<S extends InstanceRecord = {}>
 
 	isProvider<
 		C extends Creator,
-		const A extends KeysForValueTuple<S, CreatorArgs<C>>
+		const A extends KeysForValueTuple<S, CreatorArgs<C>>,
 	>(value: C): value is C & ProviderTag<A> {
 		if (!(PROVIDER in value)) return false;
 		const args = this._args.get(value);
@@ -167,17 +119,17 @@ export class ServiceContextImpl<S extends InstanceRecord = {}>
 export type CtorWithArgKeys<
 	Provider extends Ctor = Ctor,
 	Context extends InstanceRecord = any,
-	Args extends KeysForValueTuple<Context, CtorArgs<Provider>> = any
+	Args extends KeysForValueTuple<Context, CtorArgs<Provider>> = any,
 > = Provider & ProviderTag<Args>;
 
 export type FactoryWithArgKeys<
 	Provider extends Factory = Factory,
 	Context extends InstanceRecord = any,
-	Args extends KeysForValueTuple<Context, FactoryArgs<Provider>> = any
+	Args extends KeysForValueTuple<Context, FactoryArgs<Provider>> = any,
 > = Provider & ProviderTag<Args>;
 
 export type ProviderWithArgKeys<
 	Provider extends Creator = Creator,
 	Context extends InstanceRecord = any,
-	Args extends KeysForValueTuple<Context, CreatorArgs<Provider>> = any
+	Args extends KeysForValueTuple<Context, CreatorArgs<Provider>> = any,
 > = Provider & ProviderTag<Args>;

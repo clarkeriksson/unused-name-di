@@ -2,14 +2,13 @@ import {
 	INJECTED,
 	CTOR,
 	FACTORY,
-	type ProviderKindKey,
-	type ProviderKindFromKey,
 	SCOPE_MAP,
 	type ScopeKey,
 	type ScopeTokenFromKey,
 	SINGLETON,
 	TRANSIENT,
 	PROVIDER,
+	ProviderKindToken,
 } from "./const";
 import {
 	type CtorWithArgKeys,
@@ -36,12 +35,11 @@ import {
 
 export interface ServiceInfo<
 	Provider extends ProviderWithArgKeys = ProviderWithArgKeys,
-	ProviderKind extends ProviderKindKey = ProviderKindKey,
 	Scope extends ScopeKey = ScopeKey,
 > {
 	readonly provider: Provider;
 	readonly scope: ScopeTokenFromKey<Scope>;
-	readonly providerKind: ProviderKindFromKey<ProviderKind>;
+	readonly providerKind: ProviderKindToken;
 }
 
 export interface ServiceContainerBuilder<
@@ -63,7 +61,7 @@ export interface ServiceContainerBuilder<
 	): ServiceContainerBuilder<
 		ContextServices,
 		Omit<Services, K> & {
-			[Key in K]: ServiceInfo<P, "ctor", U>;
+			[Key in K]: ServiceInfo<P, U>;
 		}
 	>;
 
@@ -82,7 +80,7 @@ export interface ServiceContainerBuilder<
 	): ServiceContainerBuilder<
 		ContextServices,
 		Omit<Services, K> & {
-			[Key in K]: ServiceInfo<P, "factory", U>;
+			[Key in K]: ServiceInfo<P, U>;
 		}
 	>;
 
@@ -99,7 +97,6 @@ export interface ServiceContainerBuilder<
 		Omit<Services, K> & {
 			[Key in K]: ServiceInfo<
 				Factory<BroadenPrimitiveConst<I>> & ProviderTag<[]>,
-				"factory",
 				U
 			>;
 		}
@@ -142,7 +139,7 @@ export class ServiceContainerBuilderImpl<
 	): ServiceContainerBuilder<
 		ContextServices,
 		Omit<Services, K> & {
-			[Key in K]: ServiceInfo<P, "ctor", U>;
+			[Key in K]: ServiceInfo<P, U>;
 		}
 	> {
 		if (this._impl[key] && this._impl[key].scope === SINGLETON) {
@@ -156,7 +153,7 @@ export class ServiceContainerBuilderImpl<
 		return this as ServiceContainerBuilder<
 			ContextServices,
 			Omit<Services, K> & {
-				[Key in K]: ServiceInfo<P, "ctor", U>;
+				[Key in K]: ServiceInfo<P, U>;
 			}
 		>;
 	}
@@ -176,7 +173,7 @@ export class ServiceContainerBuilderImpl<
 	): ServiceContainerBuilder<
 		ContextServices,
 		Omit<Services, K> & {
-			[Key in K]: ServiceInfo<P, "factory", U>;
+			[Key in K]: ServiceInfo<P, U>;
 		}
 	> {
 		if (this._impl[key] && this._impl[key].scope === SINGLETON) {
@@ -190,7 +187,7 @@ export class ServiceContainerBuilderImpl<
 		return this as ServiceContainerBuilder<
 			ContextServices,
 			Omit<Services, K> & {
-				[Key in K]: ServiceInfo<P, "factory", U>;
+				[Key in K]: ServiceInfo<P, U>;
 			}
 		>;
 	}
@@ -208,7 +205,6 @@ export class ServiceContainerBuilderImpl<
 		Omit<Services, K> & {
 			[Key in K]: ServiceInfo<
 				(() => I) & { [INJECTED]: []; [PROVIDER]: true },
-				"factory",
 				U
 			>;
 		}
@@ -229,7 +225,6 @@ export class ServiceContainerBuilderImpl<
 			Omit<Services, K> & {
 				[Key in K]: ServiceInfo<
 					(() => I) & { [INJECTED]: []; [PROVIDER]: true },
-					"factory",
 					U
 				>;
 			}
