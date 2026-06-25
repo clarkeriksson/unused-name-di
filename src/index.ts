@@ -1,15 +1,15 @@
 import { ServiceContextBuilder, ServiceContextBuilderImpl } from "./context";
 
 function context(): ServiceContextBuilder {
-    return new ServiceContextBuilderImpl();
+	return new ServiceContextBuilderImpl();
 }
 
 /**
  * UnusedName namespace.
  */
 const UnusedName = {
-    /** Creates a new {@link ServiceContextBuilder}. */
-    context,
+	/** Creates a new {@link ServiceContextBuilder}. */
+	context,
 };
 
 export { UnusedName };

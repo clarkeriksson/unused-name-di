@@ -11,14 +11,14 @@ export const SINGLETON = Symbol("singleton");
 
 /** Utility object defining the map from service scope strings to service scope symbols. */
 export const SCOPE_MAP = {
-    transient: TRANSIENT,
-    scoped: SCOPED,
-    singleton: SINGLETON,
+	transient: TRANSIENT,
+	scoped: SCOPED,
+	singleton: SINGLETON,
 } as const;
 
 /** The union type of all service scope tokens. */
 export type ScopeToken = {
-    [K in keyof typeof SCOPE_MAP]: (typeof SCOPE_MAP)[K];
+	[K in keyof typeof SCOPE_MAP]: (typeof SCOPE_MAP)[K];
 }[keyof typeof SCOPE_MAP];
 
 /** The union type of all service scope strings. */
@@ -35,13 +35,13 @@ export const FACTORY = Symbol("factory");
 
 /** Utility object defining the map from service provider type keys to provider type symbols. */
 export const PROVIDER_TYPE_MAP = {
-    ctor: CTOR,
-    factory: FACTORY,
+	ctor: CTOR,
+	factory: FACTORY,
 } as const;
 
 /** The union type of all service provider type tokens. */
 export type ProviderKindToken = {
-    [K in keyof typeof PROVIDER_TYPE_MAP]: (typeof PROVIDER_TYPE_MAP)[K];
+	[K in keyof typeof PROVIDER_TYPE_MAP]: (typeof PROVIDER_TYPE_MAP)[K];
 }[keyof typeof PROVIDER_TYPE_MAP];
 
 /** The union type of all service provider type strings. */
@@ -49,7 +49,7 @@ export type ProviderKindKey = keyof typeof PROVIDER_TYPE_MAP;
 
 /** Type representing the {@link ProviderKindToken} corresponding to the {@link ProviderKindKey}. */
 export type ProviderKindFromKey<K extends ProviderKindKey> =
-    (typeof PROVIDER_TYPE_MAP)[K];
+	(typeof PROVIDER_TYPE_MAP)[K];
 
 /** {@link Symbol} property key for the argument metadata in registered services. */
 export const INJECTED = Symbol("injected");
