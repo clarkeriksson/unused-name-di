@@ -9,48 +9,14 @@ Barebones dependency injection container for typescript. No runtime dependencies
 To start, create an Unused-Name service context. The service context acts as a common truth for all derived DI containers and their children to reference. It defines the invariant key-type relationships.
 
 ```typescript
-import { UnusedName } from "unused-name";
-
-// importing type definitions for services
-// WARNING: do not import implementations to avoid circular dependency issues
-
-import type { DateService } from "...";
-import type { FileService } from "...";
-import type { ChatService } from "...";
-import type { OtherService } from "...";
-```
-
-There are two equivalent ways to create a service context.
-
-```typescript
 const context = UnusedName.context()
-    .forKey("DateService").useType<DateService>()
-    .forKey("FileService").useType<FileService>()
-    .forKey("ChatService").useType<ChatService>()
-    .forKey("AppId").useType<string>()
-    .forKey("PixelWidth").useType<number>()
-    .forKey("OtherService").useType<OtherService>()
-    .build();
-```
-
-```typescript
-const context = UnusedName.context()
-    .useKeys(
-        "DateService",
-        "FileService",
-        "ChatService",
-        "AppId",
-        "PixelWidth",
-        "OtherService",
-    )
-    .withTypeMap<{
-        "DateService": DateService,
-        "FileService": FileService,
-        "ChatService": ChatService,
-        "AppId": string,
-        "PixelWidth": number,
-        "OtherService": OtherService,
-    }>()
+    .service<DateService>()("DateService")
+    .service<FileService>()("FileService")
+    .service<ChatService>()("ChatService")
+    .service<string>()("AppId")
+    .service<number>()("PixelWidth")
+    .service<OtherService>()("OtherService")
+    ...
     .build();
 ```
 
