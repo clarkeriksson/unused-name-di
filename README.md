@@ -1,61 +1,84 @@
 # Unused Name DI
 
-Barebones dependency injection container for typescript. No runtime dependencies.
+Minimal strictly typed dependency injection container for typescript. No runtime dependencies.
 
 ## Getting Started
 
 ### ServiceContext
 
-To start, create an Unused-Name service context. The service context acts as a common truth for all derived DI containers and their children to reference. It defines the invariant key-type relationships.
+To create a dependency injection container, a `ServiceContext` must be established.
+
+A `ServiceContext` defines invariant key-to-type relationships that all containers derived from it must adhere to.
+
+It is strongly advised that the `ServiceContext` is defined in a file that only imports the _types_ of the services rather than the _implementations_, to help avoid circular dependency issues.
+
+Below is an example of building a `ServiceContext`.
 
 ```typescript
 const context = UnusedName.context()
-    .service<DateService>()("DateService")
-    .service<FileService>()("FileService")
-    .service<ChatService>()("ChatService")
-    .service<string>()("AppId")
-    .service<number>()("PixelWidth")
-    .service<OtherService>()("OtherService")
-    ...
-    .build();
+	.service<DateService>()("DateService")
+	.service<FileService>()("FileService")
+	.service<ChatService>()("ChatService")
+	.service<string>()("AppId")
+	.service<number>()("PixelWidth")
+	.service<OtherService>()("OtherService")
+	.build();
 ```
 
-Service contexts are used to register implementations and their injected dependencies. Injected dependency keys are strictly typed, key arrays corresponding to invalid types, in the wrong order, or of the wrong length will be rejected by the type system.
+A service context is also used to create injectable variants of service providers that are intended for use in the containers derived from it.
+
+If multiple service contexts plan on using the same service provider, they must all create their own injectable variant.
+
+When creating these injectable service providers, services injected into them must be specified via their keys. This key tuple is strictly typed. Any attempt to specify an invalid set of service keys will be marked as a type error.
 
 ```typescript
 // importing the context from before
-import { context } from "...";
+import { context0 } from "...";
+import { context1 } from "...";
 import type { ChatService } from "...";
 
-class ChatServiceImpl0 implements ChatService {
-    private readonly date: DateService;
-    private readonly file: FileService;
+// base service provider
+class ChatServiceImpl implements ChatService {
+	private readonly date: DateService;
+	private readonly file: FileService;
 
-    /**
-     * constructor takes in args with types
-     * registered in the service context used
-     * for injection later
-     */
-    constructor(
-        date: DateService,
-        file: FileService,
-    ) {
-        this.date = date;
-        this.file = file;
-    }
+	/**
+	 * constructor takes in args with types
+	 * registered in the service context used
+	 * for injection later
+	 */
+	constructor(date: DateService, file: FileService) {
+		this.date = date;
+		this.file = file;
+	}
 }
 
-// this export behaves as the registered class, 
-// with added metadata for use in other checks
-export const ChatService0 = context.inject(
-    ChatServiceImpl0,
-    ["DateService", "FileService"]
-);
+// This export behaves as the registered class,
+// with added metadata for use in other checks.
+// It can be used in 'context0' containers.
+export const ChatService0 = context0.inject(ChatServiceImpl, [
+	"DateServiceContext0",
+	"FileServiceContext0",
+]);
+
+// If we wanted to use this service provider in
+// 'context1' containers then we would need use
+// this variant.
+export const ChatService1 = context1.inject(ChatServiceImpl, [
+	"DateServiceContext1",
+	"FileServiceContext1",
+]);
 ```
 
 ### ServiceContainer
 
-Service containers are where service implementations can be assigned and service keys can be resolved.
+A service container is some set of service implementations complying with the root [service context](#servicecontext). They can be created directly from their root [service context](#servicecontext), or derived from other service containers.
+
+When creating a new service container, service implementations can be specified or adjusted. The only limitations are that the implementations comply with the key-type relationships defined in the root [service context](#servicecontext), and that they do not attempt to overwrite existing [singleton](#singleton) service implementations.
+
+If service implementations need to be altered, the `ServiceContext.child` or `ServiceContainer.child` methods should be used to create a new `ServiceContainerBuilder` instance.
+
+If no service implementations need to be altered, the `ServiceContainer.scope` method can be used to directly instantiate another container with an identical set of service implementations.
 
 ```typescript
 import { context } from "...";
@@ -64,21 +87,20 @@ import { DateServiceImpl } from "...";
 import { FileServiceImpl } from "...";
 import { OtherServiceFactory } from "...";
 
-const container = context.child()
-    .instance("AppId", "AppIdValue", "singleton")
-    .instance("PixelWidth", 16, "singleton")
-    .ctor("DateService", DateServiceImpl, "transient")
-    .ctor("FileService", FileServiceImpl, "scoped")
-    .ctor("ChatService", ChatService0, "scoped")
-    .factory("OtherService", OtherServiceFactory, "singleton")
-    .build();
+const container = context
+	.child()
+	.instance("AppId", "AppIdValue", "singleton")
+	.instance("PixelWidth", 16, "singleton")
+	.ctor("DateService", DateServiceImpl, "transient")
+	.ctor("FileService", FileServiceImpl, "scoped")
+	.ctor("ChatService", ChatService0, "scoped")
+	.factory("OtherService", OtherServiceFactory, "singleton")
+	.build();
 
 // now these services can all be instantiated via 'container'
 const chat: ChatService = container.resolve("ChatService");
 const appId: string = container.resolve("AppId");
 ```
-
-Service containers can also be derived from each other. The altered/added service must be of the correct type and not an already registered singleton service.
 
 ```typescript
 const child = container.child()
@@ -95,7 +117,7 @@ const invalid = child.child()
 
 ## Scopes
 
-Scopes in Unused-Name determine the relationship between resolved instances of the same type both within and between containers.
+Scopes in unused-name determine the relationship between service instances resolved from the same key, both within and between containers.
 
 ### Transient
 
