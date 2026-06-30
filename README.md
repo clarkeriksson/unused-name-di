@@ -74,11 +74,17 @@ export const ChatService1 = context1.inject(ChatServiceImpl, [
 
 A service container is some set of service implementations complying with the root [service context](#servicecontext). They can be created directly from their root [service context](#servicecontext), or derived from other service containers.
 
-When creating a new service container, service implementations can be specified or adjusted. The only limitations are that the implementations comply with the key-type relationships defined in the root [service context](#servicecontext), and that they do not attempt to overwrite existing [singleton](#singleton) service implementations.
+When creating a new service container, service implementations can be specified or adjusted. The only limitations are as follows:
 
-If service implementations need to be altered, the `ServiceContext.child` or `ServiceContainer.child` methods should be used to create a new `ServiceContainerBuilder` instance.
+-   Registered implementations must comply with the key-type relationships defined in the root [service context](#servicecontext)
+-   Registered implementations cannot overwrite existing [singleton](#singleton) service implementations
+-   Any newly registered service implementations must have all of their service dependencies already registered.
 
-If no service implementations need to be altered, the `ServiceContainer.scope` method can be used to directly instantiate another container with an identical set of service implementations.
+The last restriction above has the added side-effect of preventing most circular dependency situations.
+
+If service implementations need to be altered, the `ServiceContext` or `ServiceContainer` `child()` methods should be used to create a new `ServiceContainerBuilder` instance.
+
+If no service implementations need to be altered, the `ServiceContainer` `scope()` method can be used to directly instantiate another container with an identical set of service implementations.
 
 ```typescript
 import { context } from "...";
@@ -115,6 +121,16 @@ const invalid = child.child()
     .build();
 ```
 
+```typescript
+import { rootContainer } from "...";
+
+function doSomeRequestScoped() {
+	const scope = rootContainer.scope();
+	const scopedServiceInstance = scope.resolve("ScopedService");
+	...
+}
+```
+
 ## Scopes
 
 Scopes in unused-name determine the relationship between service instances resolved from the same key, both within and between containers.
@@ -124,11 +140,11 @@ Scopes in unused-name determine the relationship between service instances resol
 Transient services always resolve to a new service instance.
 
 ```typescript
-let container: ServiceContainer;
+import { rootContainer } from "...";
 
-const resolved0 = container.resolve("Service");
-const resolved1 = container.resolve("Service");
-// resolved0 !== resolved1
+const rootResolved0 = rootContainer.resolve("Service");
+const rootResolved1 = rootContainer.resolve("Service");
+// rootResolved0 !== rootResolved1
 ```
 
 ### Scoped
@@ -136,29 +152,29 @@ const resolved1 = container.resolve("Service");
 Scoped services resolve to the same instance within a container, but different instances between containers.
 
 ```typescript
-let container0: ServiceContainer;
-let container1: ServiceContainer = container0.child().build();
+import { rootContainer } from "...";
+let childContainer: ServiceContainer = rootContainer.scope();
 
-const container0Resolved0 = container0.resolve("Service");
-const container0Resolved1 = container0.resolve("Service");
-// container0Resolved0 === container0Resolved1
+const rootResolved0 = rootContainer.resolve("Service");
+const rootResolved1 = rootContainer.resolve("Service");
+// rootResolved0 === rootResolved1
 
-const container1Resolved0 = container1.resolve("Service");
-// container0Resolved0 !== container1Resolved0
+const childResolved = childContainer.resolve("Service");
+// rootResolved0 !== childResolved
 ```
 
 ### Singleton
 
-Singleton services resolve to the same instance in a container and all descendant containers. An important note about singleton services is that their dependencies are resolved a single time in their container of origin. Scoped dependencies will therefore be carried across container boundaries.
+Singleton services resolve to the same instance in a container and all descendant containers. An important note about singleton services is that their dependencies are resolved based on their container of origin. Scoped dependencies will therefore be carried across container boundaries.
 
 ```typescript
-let container0: ServiceContainer;
-let container1: ServiceContainer = container0.child().build();
+import { rootContainer } from "...";
+let childContainer: ServiceContainer = rootContainer.scope();
 
-const container0Resolved0 = container0.resolve("Service");
-const container0Resolved1 = container0.resolve("Service");
-// container0Resolved0 === container0Resolved1
+const rootResolved0 = rootContainer.resolve("Service");
+const rootResolved1 = rootContainer.resolve("Service");
+// rootResolved0 === rootResolved1
 
-const container1Resolved0 = container1.resolve("Service");
-// container0Resolved0 === container1Resolved0
+const childResolved = childContainer.resolve("Service");
+// rootResolved0 === childResolved
 ```

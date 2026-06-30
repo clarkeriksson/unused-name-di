@@ -20,6 +20,7 @@ import {
 	DepsNotFoundError,
 	ServiceNotFoundError,
 	SingletonOverrideError,
+	UnusedNameError,
 } from "./errors";
 import {
 	type Ctor,
@@ -35,7 +36,7 @@ import {
 
 export interface ServiceInfo<
 	Provider extends ProviderWithArgKeys = ProviderWithArgKeys,
-	Scope extends ScopeKey = ScopeKey,
+	Scope extends ScopeKey = ScopeKey
 > {
 	readonly provider: Provider;
 	readonly scope: ScopeTokenFromKey<Scope>;
@@ -44,7 +45,7 @@ export interface ServiceInfo<
 
 export interface ServiceContainerBuilder<
 	ContextServices extends InstanceRecord,
-	Services extends Record<PropertyKey, ServiceInfo> = {},
+	Services extends Record<PropertyKey, ServiceInfo> = {}
 > {
 	ctor<
 		const K extends keyof ContextServices,
@@ -53,11 +54,11 @@ export interface ServiceContainerBuilder<
 			MapToProperty<Services, "provider">,
 			KeysForValueTuple<Services, any>
 		>,
-		const U extends ScopeKey,
+		const U extends ScopeKey
 	>(
 		key: KeyIfExtensible<Services, K>,
 		provider: P,
-		scope: U,
+		scope: U
 	): ServiceContainerBuilder<
 		ContextServices,
 		Omit<Services, K> & {
@@ -72,11 +73,11 @@ export interface ServiceContainerBuilder<
 			MapToProperty<Services, "provider">,
 			KeysForValueTuple<Services, any>
 		>,
-		const U extends ScopeKey,
+		const U extends ScopeKey
 	>(
 		key: KeyIfExtensible<Services, K>,
 		provider: P,
-		scope: U,
+		scope: U
 	): ServiceContainerBuilder<
 		ContextServices,
 		Omit<Services, K> & {
@@ -87,11 +88,11 @@ export interface ServiceContainerBuilder<
 	instance<
 		const K extends keyof ContextServices,
 		const I extends ContextServices[K],
-		const U extends Exclude<ScopeKey, "transient">,
+		const U extends Exclude<ScopeKey, "transient">
 	>(
 		key: KeyIfExtensible<Services, K>,
 		instance: I,
-		scope: U,
+		scope: U
 	): ServiceContainerBuilder<
 		ContextServices,
 		Omit<Services, K> & {
@@ -107,8 +108,9 @@ export interface ServiceContainerBuilder<
 
 export class ServiceContainerBuilderImpl<
 	ContextServices extends InstanceRecord,
-	Services extends Record<PropertyKey, ServiceInfo> = {},
-> implements ServiceContainerBuilder<ContextServices, Services> {
+	Services extends Record<PropertyKey, ServiceInfo> = {}
+> implements ServiceContainerBuilder<ContextServices, Services>
+{
 	private readonly _context: ServiceContext<ContextServices>;
 	private readonly _impl: Record<PropertyKey, ServiceInfo>;
 
@@ -117,7 +119,7 @@ export class ServiceContainerBuilderImpl<
 	constructor(
 		context: ServiceContext<ContextServices>,
 		impl: Services,
-		resolvers?: Record<PropertyKey, () => unknown>,
+		resolvers?: Record<PropertyKey, () => unknown>
 	) {
 		this._context = context;
 		this._impl = impl;
@@ -131,18 +133,18 @@ export class ServiceContainerBuilderImpl<
 			MapToProperty<Services, "provider">,
 			KeysForValueTuple<Services, any>
 		>,
-		const U extends ScopeKey,
+		const U extends ScopeKey
 	>(
 		key: KeyIfExtensible<Services, K>,
 		provider: P,
-		scope: U,
+		scope: U
 	): ServiceContainerBuilder<
 		ContextServices,
 		Omit<Services, K> & {
 			[Key in K]: ServiceInfo<P, U>;
 		}
 	> {
-		if (this._impl[key] && this._impl[key].scope === SINGLETON) {
+		if (this._impl[key]?.scope === SINGLETON) {
 			throw new SingletonOverrideError(key);
 		}
 		this._impl[key] = {
@@ -165,18 +167,18 @@ export class ServiceContainerBuilderImpl<
 			MapToProperty<Services, "provider">,
 			KeysForValueTuple<Services, any>
 		>,
-		const U extends ScopeKey,
+		const U extends ScopeKey
 	>(
 		key: KeyIfExtensible<Services, K>,
 		provider: P,
-		scope: U,
+		scope: U
 	): ServiceContainerBuilder<
 		ContextServices,
 		Omit<Services, K> & {
 			[Key in K]: ServiceInfo<P, U>;
 		}
 	> {
-		if (this._impl[key] && this._impl[key].scope === SINGLETON) {
+		if (this._impl[key]?.scope === SINGLETON) {
 			throw new SingletonOverrideError(key);
 		}
 		this._impl[key] = {
@@ -195,11 +197,11 @@ export class ServiceContainerBuilderImpl<
 	instance<
 		const K extends keyof ContextServices,
 		const I extends ContextServices[K],
-		const U extends ScopeKey,
+		const U extends ScopeKey
 	>(
 		key: KeyIfExtensible<Services, K>,
 		instance: I,
-		scope: U,
+		scope: U
 	): ServiceContainerBuilder<
 		ContextServices,
 		Omit<Services, K> & {
@@ -209,7 +211,7 @@ export class ServiceContainerBuilderImpl<
 			>;
 		}
 	> {
-		if (this._impl[key] && this._impl[key].scope === SINGLETON) {
+		if (this._impl[key]?.scope === SINGLETON) {
 			throw new SingletonOverrideError(key);
 		}
 		this._impl[key] = {
@@ -235,14 +237,14 @@ export class ServiceContainerBuilderImpl<
 		return new ServiceContainerImpl(
 			this._context,
 			this._impl as Services,
-			this._resolvers,
+			this._resolvers
 		);
 	}
 }
 
 export interface ServiceContainer<
 	ContextServices extends InstanceRecord,
-	Services extends Record<PropertyKey, ServiceInfo>,
+	Services extends Record<PropertyKey, ServiceInfo>
 > {
 	resolve<const K extends keyof ContextServices>(key: K): ContextServices[K];
 	child(): ServiceContainerBuilder<ContextServices, Services>;
@@ -251,8 +253,9 @@ export interface ServiceContainer<
 
 export class ServiceContainerImpl<
 	ContextServices extends InstanceRecord,
-	Services extends Record<PropertyKey, ServiceInfo>,
-> implements ServiceContainer<ContextServices, Services> {
+	Services extends Record<PropertyKey, ServiceInfo>
+> implements ServiceContainer<ContextServices, Services>
+{
 	private readonly _context: ServiceContext<ContextServices>;
 	private readonly _impl: Record<PropertyKey, ServiceInfo>;
 
@@ -261,7 +264,7 @@ export class ServiceContainerImpl<
 	constructor(
 		context: ServiceContext<ContextServices>,
 		impl: Services,
-		resolvers?: Record<PropertyKey, () => unknown>,
+		resolvers?: Record<PropertyKey, () => unknown>
 	) {
 		this._context = context;
 		this._impl = impl;
@@ -274,17 +277,15 @@ export class ServiceContainerImpl<
 
 	child(): ServiceContainerBuilder<ContextServices, Services> {
 		const singletonResolvers: Record<PropertyKey, () => unknown> = {};
-		for (const [key, val] of Object.entries(this._impl)) {
-			if (val.scope === SINGLETON) {
-				singletonResolvers[key] = this._ensureResolverCached(key);
-			}
-		}
-		const builder = new ServiceContainerBuilderImpl(
+		Object.entries(this._impl).forEach(([k, v]) => {
+			if (v.scope === SINGLETON)
+				singletonResolvers[k] = this._ensureResolverCached(k);
+		});
+		return new ServiceContainerBuilderImpl(
 			this._context,
 			{ ...this._impl },
-			singletonResolvers,
+			singletonResolvers
 		);
-		return builder;
 	}
 
 	scope(): ServiceContainer<ContextServices, Services> {
@@ -292,7 +293,7 @@ export class ServiceContainerImpl<
 	}
 
 	private _ensureResolverCached<const K extends keyof ContextServices>(
-		key: K,
+		key: K
 	): () => ContextServices[K] {
 		const cached = this._resolvers[key];
 		if (cached) return cached as any;
@@ -304,7 +305,7 @@ export class ServiceContainerImpl<
 		if (!deps) throw new DepsNotFoundError(key);
 
 		const argResolvers = deps.map((k) =>
-			this._ensureResolverCached(k as keyof ContextServices),
+			this._ensureResolverCached(k as keyof ContextServices)
 		);
 
 		let construct: () => ContextServices[K];
@@ -363,18 +364,18 @@ export class ServiceContainerImpl<
 				const [r0, r1, r2, r3, r4, r5, r6] = argResolvers;
 				construct = isFactory
 					? // prettier-ignore
-						() => provider(r0(), r1(), r2(), r3(), r4(), r5(), r6())
+					  () => provider(r0(), r1(), r2(), r3(), r4(), r5(), r6())
 					: // prettier-ignore
-						() => new provider(r0(), r1(), r2(), r3(), r4(), r5(), r6());
+					  () => new provider(r0(), r1(), r2(), r3(), r4(), r5(), r6());
 				break;
 			}
 			case 8: {
 				const [r0, r1, r2, r3, r4, r5, r6, r7] = argResolvers;
 				construct = isFactory
 					? // prettier-ignore
-						() => provider(r0(), r1(), r2(), r3(), r4(), r5(), r6(), r7())
+					  () => provider(r0(), r1(), r2(), r3(), r4(), r5(), r6(), r7())
 					: // prettier-ignore
-						() => new provider(r0(), r1(), r2(), r3(), r4(), r5(), r6(), r7());
+					  () => new provider(r0(), r1(), r2(), r3(), r4(), r5(), r6(), r7());
 				break;
 			}
 			default: {
@@ -391,7 +392,7 @@ export class ServiceContainerImpl<
 				: (() => {
 						const instance = construct();
 						return () => instance;
-					})();
+				  })();
 
 		this._resolvers[key] = resolver;
 		return resolver;

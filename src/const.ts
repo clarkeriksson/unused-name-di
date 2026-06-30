@@ -3,11 +3,11 @@
  */
 
 /** {@link Symbol} representing a transient service scope token. */
-export const TRANSIENT = Symbol("transient");
+export const TRANSIENT = Symbol();
 /** {@link Symbol} representing a scoped service scope token. */
-export const SCOPED = Symbol("scoped");
+export const SCOPED = Symbol();
 /** {@link Symbol} representing a singleton service scope token. */
-export const SINGLETON = Symbol("singleton");
+export const SINGLETON = Symbol();
 
 /** Utility object defining the map from service scope strings to service scope symbols. */
 export const SCOPE_MAP = {
@@ -28,10 +28,10 @@ export type ScopeKey = keyof typeof SCOPE_MAP;
 export type ScopeTokenFromKey<K extends ScopeKey> = (typeof SCOPE_MAP)[K];
 
 /** {@link Symbol} representing a constructor. */
-export const CTOR = Symbol("ctor");
+export const CTOR = Symbol();
 
 /** {@link Symbol} representing a factory. */
-export const FACTORY = Symbol("factory");
+export const FACTORY = Symbol();
 
 /** Utility object defining the map from service provider type keys to provider type symbols. */
 export const PROVIDER_TYPE_MAP = {
@@ -52,7 +52,7 @@ export type ProviderKindFromKey<K extends ProviderKindKey> =
 	(typeof PROVIDER_TYPE_MAP)[K];
 
 /** {@link Symbol} property key for the argument metadata in registered services. */
-export const INJECTED = Symbol("injected");
+export const INJECTED = Symbol();
 
 /** {@link Symbol} property key tagging a constructor or factory as a registered service provider. */
-export const PROVIDER = Symbol("unused-name-service-provider");
+export const PROVIDER = Symbol();

@@ -1,57 +1,12 @@
-export class DepsNotFoundError extends Error {
+export class UnusedNameError extends Error {
+	readonly key: PropertyKey;
 	constructor(key: PropertyKey) {
-		super(
-			`could not find the dependencies of the service with key '${String(
-				key,
-			)}'`,
-		);
-		if (
-			"captureStackTrace" in Error &&
-			typeof Error["captureStackTrace"] === "function"
-		) {
-			Error.captureStackTrace(this, DepsNotFoundError);
-		}
+		super();
+		this.key = key;
 	}
 }
 
-export class ServiceNotFoundError extends Error {
-	constructor(key: PropertyKey) {
-		super(`could not locate a service with key '${String(key)}'`);
-		if (
-			"captureStackTrace" in Error &&
-			typeof Error["captureStackTrace"] === "function"
-		) {
-			Error.captureStackTrace(this, ServiceNotFoundError);
-		}
-	}
-}
-
-export class SingletonOverrideError extends Error {
-	constructor(key: PropertyKey) {
-		super(
-			`attempted to override a singleton service with key '${String(
-				key,
-			)}'`,
-		);
-		if (
-			"captureStackTrace" in Error &&
-			typeof Error["captureStackTrace"] === "function"
-		) {
-			Error.captureStackTrace(this, SingletonOverrideError);
-		}
-	}
-}
-
-export class KeyReuseError extends Error {
-	constructor(key: PropertyKey) {
-		super(
-			`attempted to add the key '${String(key)}' to a service context more than once`,
-		);
-		if (
-			"captureStackTrace" in Error &&
-			typeof Error["captureStackTrace"] === "function"
-		) {
-			Error.captureStackTrace(this, KeyReuseError);
-		}
-	}
-}
+export class DepsNotFoundError extends UnusedNameError {}
+export class ServiceNotFoundError extends UnusedNameError {}
+export class SingletonOverrideError extends UnusedNameError {}
+export class KeyReuseError extends UnusedNameError {}

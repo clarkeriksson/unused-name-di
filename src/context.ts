@@ -3,7 +3,7 @@ import {
 	ServiceContainerBuilder,
 	ServiceContainerBuilderImpl,
 } from "./container";
-import { KeyReuseError } from "./errors";
+import { KeyReuseError, UnusedNameError } from "./errors";
 import {
 	Ctor,
 	CtorArgs,
@@ -20,15 +20,15 @@ import {
 
 export interface ServiceContextBuilder<S extends InstanceRecord = {}> {
 	service<const T>(): <const K extends PropertyKey>(
-		key: NewKey<K, S>,
+		key: NewKey<K, S>
 	) => ServiceContextBuilder<Pretty<S & { [Key in K]: T }>>;
 
 	build(): ServiceContext<Pretty<S>>;
 }
 
-export class ServiceContextBuilderImpl<
-	S extends InstanceRecord = {},
-> implements ServiceContextBuilder<S> {
+export class ServiceContextBuilderImpl<S extends InstanceRecord = {}>
+	implements ServiceContextBuilder<S>
+{
 	_keys: Set<PropertyKey>;
 
 	constructor() {
@@ -36,7 +36,7 @@ export class ServiceContextBuilderImpl<
 	}
 
 	service<const T>(): <const K extends PropertyKey>(
-		key: NewKey<K, S>,
+		key: NewKey<K, S>
 	) => ServiceContextBuilder<Pretty<S & { [Key in K]: T }>> {
 		return <const K extends PropertyKey>(key: NewKey<K, S>) => {
 			if (this._keys.has(key)) {
@@ -56,7 +56,7 @@ export class ServiceContextBuilderImpl<
 export interface ServiceContext<S extends InstanceRecord = {}> {
 	inject<
 		const C extends Creator,
-		const A extends KeysForValueTuple<S, CreatorArgs<C>>,
+		const A extends KeysForValueTuple<S, CreatorArgs<C>>
 	>(
 		provider: C,
 		...args: CreatorArgs<C> extends [] ? [args?: A] : [args: A]
@@ -66,15 +66,15 @@ export interface ServiceContext<S extends InstanceRecord = {}> {
 
 	isProvider<
 		C extends Creator,
-		const A extends KeysForValueTuple<S, CreatorArgs<C>>,
+		const A extends KeysForValueTuple<S, CreatorArgs<C>>
 	>(
-		value: C,
+		value: C
 	): value is C & ProviderTag<A>;
 }
 
-export class ServiceContextImpl<
-	S extends InstanceRecord = {},
-> implements ServiceContext<S> {
+export class ServiceContextImpl<S extends InstanceRecord = {}>
+	implements ServiceContext<S>
+{
 	_keys: Set<PropertyKey>;
 	_args: Map<Creator, PropertyKey[]>;
 
@@ -85,7 +85,7 @@ export class ServiceContextImpl<
 
 	inject<
 		const C extends Creator,
-		const A extends KeysForValueTuple<S, CreatorArgs<C>>,
+		const A extends KeysForValueTuple<S, CreatorArgs<C>>
 	>(
 		provider: C,
 		...args: CreatorArgs<C> extends [] ? [args?: A] : [args: A]
@@ -104,7 +104,7 @@ export class ServiceContextImpl<
 
 	isProvider<
 		C extends Creator,
-		const A extends KeysForValueTuple<S, CreatorArgs<C>>,
+		const A extends KeysForValueTuple<S, CreatorArgs<C>>
 	>(value: C): value is C & ProviderTag<A> {
 		if (!(PROVIDER in value)) return false;
 		const args = this._args.get(value);
@@ -119,17 +119,17 @@ export class ServiceContextImpl<
 export type CtorWithArgKeys<
 	Provider extends Ctor = Ctor,
 	Context extends InstanceRecord = any,
-	Args extends KeysForValueTuple<Context, CtorArgs<Provider>> = any,
+	Args extends KeysForValueTuple<Context, CtorArgs<Provider>> = any
 > = Provider & ProviderTag<Args>;
 
 export type FactoryWithArgKeys<
 	Provider extends Factory = Factory,
 	Context extends InstanceRecord = any,
-	Args extends KeysForValueTuple<Context, FactoryArgs<Provider>> = any,
+	Args extends KeysForValueTuple<Context, FactoryArgs<Provider>> = any
 > = Provider & ProviderTag<Args>;
 
 export type ProviderWithArgKeys<
 	Provider extends Creator = Creator,
 	Context extends InstanceRecord = any,
-	Args extends KeysForValueTuple<Context, CreatorArgs<Provider>> = any,
+	Args extends KeysForValueTuple<Context, CreatorArgs<Provider>> = any
 > = Provider & ProviderTag<Args>;
