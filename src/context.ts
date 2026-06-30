@@ -34,11 +34,9 @@ export interface ServiceContext<S extends InstanceRecord = {}> {
 export class ServiceContextImpl<
 	S extends InstanceRecord = {},
 > implements ServiceContext<S> {
-	#keys: Set<PropertyKey>;
 	#args: Map<Creator, PropertyKey[]>;
 
 	constructor() {
-		this.#keys = new Set();
 		this.#args = new Map();
 	}
 

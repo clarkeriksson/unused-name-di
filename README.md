@@ -1,40 +1,50 @@
 # Unused Name DI
 
-Minimal strictly typed dependency injection container for typescript. No runtime dependencies.
+Tiny and powerful strictly typed dependency injection implementation for typescript. No runtime dependencies.
+
+Featuring:
+- Container scoping, container hierarchy
+- Lazy service resolution, minimal unnecessary work
+- Typed service resolution based on key
+- Type checking when injecting services by key
+- Minimal runtime checks, static checks do the work
+- _NO_ token system, use any valid object key
 
 ## Getting Started
 
 ### ServiceContext
 
-To create a dependency injection container, a `ServiceContext` must be established.
+To create a dependency injection [`ServiceContainer`](#servicecontainer), a `ServiceContext` must be established.
 
-A `ServiceContext` defines invariant key-to-type relationships that all containers derived from it must adhere to.
+A `ServiceContext` defines invariant key-to-type relationships that all [`ServiceContainer`](#servicecontainer) instances derived from it must adhere to when registering service implementations.
 
 It is strongly advised that the `ServiceContext` is defined in a file that only imports the _types_ of the services rather than the _implementations_, to help avoid circular dependency issues.
 
-Below is an example of building a `ServiceContext`.
+Below is an example of how to define a `ServiceContext`.
 
 ```typescript
-const context = UnusedName.context()
-	.service<DateService>()("DateService")
-	.service<FileService>()("FileService")
-	.service<ChatService>()("ChatService")
-	.service<string>()("AppId")
-	.service<number>()("PixelWidth")
-	.service<OtherService>()("OtherService")
-	.build();
+import * as UnusedName from "unused-name";
+
+const context = UnusedName.context<{
+	DateService: DateService,
+	FileService: FileService,
+	ChatService: ChatService,
+	AppId: string,
+	PixelWidth: number,
+	OtherService: OtherService,
+}>();
 ```
 
-A service context is also used to create injectable variants of service providers that are intended for use in the containers derived from it.
+A `ServiceContext` is also used to create injectable variants of service providers that are intended for use in the [`ServiceContainer`](#servicecontainer) instances derived from it.
 
-If multiple service contexts plan on using the same service provider, they must all create their own injectable variant.
+If multiple `ServiceContext` instances plan on using the same service provider, they must all create their own injectable variant.
 
-When creating these injectable service providers, services injected into them must be specified via their keys. This key tuple is strictly typed. Any attempt to specify an invalid set of service keys will be marked as a type error.
+When creating these injectable service providers, services injected into them must be specified via their keys. This key tuple is strictly typed. Almost any attempts to specify an invalid set of service keys will be marked as a type error.
 
 ```typescript
 // importing the context from before
-import { context0 } from "...";
-import { context1 } from "...";
+import { firstContext } from "...";
+import { secondContext } from "...";
 import type { ChatService } from "...";
 
 // base service provider
@@ -55,36 +65,36 @@ class ChatServiceImpl implements ChatService {
 
 // This export behaves as the registered class,
 // with added metadata for use in other checks.
-// It can be used in 'context0' containers.
-export const ChatService0 = context0.inject(ChatServiceImpl, [
-	"DateServiceContext0",
-	"FileServiceContext0",
+// It can be used in 'firstContext' containers.
+export const ChatServiceFirst = firstContext.inject(ChatServiceImpl, [
+	"DateServiceFirst",
+	"FileServiceFirst",
 ]);
 
 // If we wanted to use this service provider in
-// 'context1' containers then we would need use
-// this variant.
-export const ChatService1 = context1.inject(ChatServiceImpl, [
-	"DateServiceContext1",
-	"FileServiceContext1",
+// 'secondContext' containers then we would need 
+// use this variant.
+export const ChatServiceSecond = secondContext.inject(ChatServiceImpl, [
+	"DateServiceSecond",
+	"FileServiceSecond",
 ]);
 ```
 
 ### ServiceContainer
 
-A service container is some set of service implementations complying with the root [service context](#servicecontext). They can be created directly from their root [service context](#servicecontext), or derived from other service containers.
+A `ServiceContainer` is some set of service implementations complying with the root [`ServiceContext`](#servicecontext). They can be created directly from their root [`ServiceContext`](#servicecontext), or derived from other `ServiceContainer` instances.
 
-When creating a new service container, service implementations can be specified or adjusted. The only limitations are as follows:
+When creating a new `ServiceContainer`, service implementations can be specified or adjusted. The only limitations are as follows:
 
--   Registered implementations must comply with the key-type relationships defined in the root [service context](#servicecontext)
+-   Registered implementations must comply with the key-to-type relationships defined in the root [`ServiceContext`](#servicecontext)
 -   Registered implementations cannot overwrite existing [singleton](#singleton) service implementations
 -   Any newly registered service implementations must have all of their service dependencies already registered.
 
 The last restriction above has the added side-effect of preventing most circular dependency situations.
 
-If service implementations need to be altered, the `ServiceContext` or `ServiceContainer` `child()` methods should be used to create a new `ServiceContainerBuilder` instance.
+If service implementations need to be altered, the `child()` method found on [`ServiceContext`](#servicecontext) or `ServiceContainer` instances should be used to initialize a `ServiceContainerBuilder`.
 
-If no service implementations need to be altered, the `ServiceContainer` `scope()` method can be used to directly instantiate another container with an identical set of service implementations.
+If no service implementations need to be altered, the `scope()` method found on `ServiceContainer` instances can be used to directly instantiate another `ServiceContainer` with an identical set of service implementations.
 
 ```typescript
 import { context } from "...";
@@ -133,7 +143,7 @@ function doSomeRequestScoped() {
 
 ## Scopes
 
-Scopes in unused-name determine the relationship between service instances resolved from the same key, both within and between containers.
+Scopes in unused-name determine the relationship between service instances resolved from the same key, both within and between [`ServiceContainer`](#servicecontainer) instances.
 
 ### Transient
 
@@ -149,7 +159,7 @@ const rootResolved1 = rootContainer.resolve("Service");
 
 ### Scoped
 
-Scoped services resolve to the same instance within a container, but different instances between containers.
+Scoped services resolve to the same instance within a [`ServiceContainer`](#servicecontainer), but different instances between [`ServiceContainer`](#servicecontainer) instances.
 
 ```typescript
 import { rootContainer } from "...";
@@ -165,7 +175,7 @@ const childResolved = childContainer.resolve("Service");
 
 ### Singleton
 
-Singleton services resolve to the same instance in a container and all descendant containers. An important note about singleton services is that their dependencies are resolved based on their container of origin. Scoped dependencies will therefore be carried across container boundaries.
+Singleton services resolve to the same instance in a [`ServiceContainer`](#servicecontainer) and all descendant [`ServiceContainer`](#servicecontainer) instances. An important note about singleton services is that their dependencies are resolved based on their [`ServiceContainer`](#servicecontainer) of origin. Scoped dependencies will therefore be carried across [`ServiceContainer`](#servicecontainer) boundaries.
 
 ```typescript
 import { rootContainer } from "...";

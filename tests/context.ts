@@ -1,4 +1,4 @@
-import { UnusedName } from "../src";
+import * as DI from "../src";
 import {
 	ChatService,
 	DateService,
@@ -9,7 +9,7 @@ import {
 	VideoService,
 } from "./setup";
 
-export const context = UnusedName.context<{
+export const context = DI.context<{
 	DateService: DateService;
 	AppId: string;
 	TestPrimitive: symbol;
