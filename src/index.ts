@@ -1,14 +1,15 @@
-import { ServiceContextBuilder, ServiceContextBuilderImpl } from "./context";
+import { ServiceContextImpl, type ServiceContext } from "./context";
+import { type InstanceRecord } from "./global";
 
-function context(): ServiceContextBuilder {
-	return new ServiceContextBuilderImpl();
+function context<T extends InstanceRecord = {}>(): ServiceContext<T> {
+	return new ServiceContextImpl<T>();
 }
 
 /**
  * UnusedName namespace.
  */
 const UnusedName = {
-	/** Creates a new {@link ServiceContextBuilder}. */
+	/** Creates a new {@link ServiceContext}. */
 	context,
 };
 

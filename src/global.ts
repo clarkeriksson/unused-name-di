@@ -1,9 +1,4 @@
-import {
-	INJECTED,
-	PROVIDER,
-	type ProviderKindKey,
-	type ScopeKey,
-} from "./const";
+import { INJECTED, PROVIDER, type ScopeKey } from "./const";
 import { type ServiceInfo } from "./container";
 
 /**
@@ -159,7 +154,7 @@ export declare type KeysForScope<
 }[keyof Services];
 
 /**
- * Type that returns the provided {@link Key} type if it is not already associated with a {@link ServiceInfo} with {@link ServiceInfo.scope scope} value of singleton.
+ * Type that returns the provided {@link Key} type if it is not already associated with a {@link ServiceInfo} with {@link ServiceInfo["scope"] scope} value of singleton.
  * @param Services The {@link Record} type with {@link ServiceInfo} values.
  * @param Key The key to conditionally pass through.
  */
