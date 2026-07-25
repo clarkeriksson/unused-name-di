@@ -119,7 +119,6 @@ export class ServiceContainerImpl<
 {
 	readonly #ctx: ServiceContext<ContextServices>;
 	readonly #impl: Record<PropertyKey, ServiceInfo>;
-
 	readonly #resolvers: Record<PropertyKey, () => unknown>;
 
 	constructor(
@@ -247,8 +246,11 @@ export class ServiceContainerImpl<
 			impl.scope === TRANSIENT
 				? construct
 				: (() => {
-						const instance = construct();
-						return () => instance;
+						let instance: any;
+						return () => {
+							instance ??= construct();
+							return instance;
+						};
 					})();
 
 		this.#resolvers[key] = resolver;

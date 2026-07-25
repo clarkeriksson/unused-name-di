@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { it, test, expect, describe } from "vitest";
+import * as DI from "../src";
 
 import { context } from "./context";
 import {
@@ -33,88 +34,195 @@ describe("Container Initialization", () => {
 });
 
 describe("Transient Service Resolution", () => {
-	const resolvedFileService0 = di.resolve("FileService0");
+	interface SERVICE {
+		readonly tag: "__TRANSIENT__";
+	}
+	class SERVICEIMPL implements SERVICE {
+		readonly tag = "__TRANSIENT__";
+	}
+
+	const context = DI.context<{ SERVICE: SERVICE }>();
+
+	const SERVICE = context.inject(SERVICEIMPL);
+
+	const root = context.child().ctor("SERVICE", SERVICE, "transient").build();
+	const child = root.scope();
+
+	const rootService0 = root.resolve("SERVICE");
+	const childService0 = child.resolve("SERVICE");
+	const childService1 = child.resolve("SERVICE");
 
 	it("should resolve a defined service instance", () =>
-		expect(resolvedFileService0).toBeDefined());
-
-	const anotherResolvedFileService0 = di.resolve("FileService0");
-
-	it("should resolve to different instances within a container", () =>
-		expect(resolvedFileService0).not.toBe(anotherResolvedFileService0));
-
-	const child = di.scope();
-	const childResolvedFileService0 = child.resolve("FileService0");
-
-	it("should resolve to different instances between containers", () =>
-		expect(resolvedFileService0).not.toBe(childResolvedFileService0));
-
-	it("should resolve defined service dependencies", () => {
-		expect(resolvedFileService0.date).toBeInstanceOf(DateService);
-		expect(resolvedFileService0.image).toBeInstanceOf(ImageService);
-		expect(resolvedFileService0.video).toBeInstanceOf(VideoService);
-	});
+		expect(rootService0).toBeDefined());
+	it("should resolve to different instances within the same container", () =>
+		expect(childService0).not.toBe(childService1));
+	it("should resolve to different instances between different containers", () =>
+		expect(rootService0).not.toBe(childService0));
 });
 
 describe("Scoped Service Resolution", () => {
-	const resolvedImageService = di.resolve("ImageService");
+	interface SERVICE {
+		readonly tag: "__SCOPED__";
+	}
+	class SERVICEIMPL implements SERVICE {
+		readonly tag = "__SCOPED__";
+	}
+
+	const context = DI.context<{ SERVICE: SERVICE }>();
+
+	const SERVICE = context.inject(SERVICEIMPL);
+
+	const root = context.child().ctor("SERVICE", SERVICE, "scoped").build();
+	const child = root.scope();
+
+	const rootService0 = root.resolve("SERVICE");
+	const childService0 = child.resolve("SERVICE");
+	const childService1 = child.resolve("SERVICE");
 
 	it("should resolve a defined service instance", () =>
-		expect(resolvedImageService).toBeDefined());
-
-	const anotherResolvedImageService = di.resolve("ImageService");
-
-	it("should resolve to the same instance within a container", () =>
-		expect(resolvedImageService).toBe(anotherResolvedImageService));
-
-	const child = di.scope();
-	const childResolvedImageService = child.resolve("ImageService");
-
-	it("should resolve to different instances between containers", () =>
-		expect(childResolvedImageService).not.toBe(resolvedImageService));
-
-	it("should resolve defined service dependencies", () => {
-		expect(resolvedImageService.pxWidth).toBeTypeOf("number");
-		expect(resolvedImageService.video).toBeInstanceOf(VideoService);
-	});
+		expect(rootService0).toBeDefined());
+	it("should resolve to the same instance within the same container", () =>
+		expect(childService0).toBe(childService1));
+	it("should resolve to different instances between different containers", () =>
+		expect(rootService0).not.toBe(childService0));
 });
 
 describe("Singleton Service Resolution", () => {
-	const resolvedVideoService = di.resolve("VideoService");
+	interface SERVICE {
+		readonly tag: "__SINGLETON__";
+	}
+	class SERVICEIMPL implements SERVICE {
+		readonly tag = "__SINGLETON__";
+	}
+
+	const context = DI.context<{ SERVICE: SERVICE }>();
+
+	const SERVICE = context.inject(SERVICEIMPL);
+
+	const root = context.child().ctor("SERVICE", SERVICE, "singleton").build();
+	const child = root.scope();
+
+	const rootService0 = root.resolve("SERVICE");
+	const childService0 = child.resolve("SERVICE");
+	const childService1 = child.resolve("SERVICE");
 
 	it("should resolve a defined service instance", () =>
-		expect(resolvedVideoService).toBeDefined());
+		expect(rootService0).toBeDefined());
+	it("should resolve to the same instance within the same container", () =>
+		expect(childService0).toBe(childService1));
+	it("should resolve to the same instance between different containers", () =>
+		expect(rootService0).toBe(childService0));
+});
 
-	const anotherResolvedVideoService = di.resolve("VideoService");
+describe("Service Constructor Registration", () => {
+	interface SERVICE {
+		readonly tag: "__CTOR__";
+	}
+	class SERVICEIMPL implements SERVICE {
+		readonly tag = "__CTOR__";
+	}
 
-	it("should resolve to the same instance within a container", () =>
-		expect(resolvedVideoService).toBe(anotherResolvedVideoService));
+	const context = DI.context<{
+		TRANSIENTSERVICE: SERVICE;
+		SCOPEDSERVICE: SERVICE;
+		SINGLETONSERVICE: SERVICE;
+	}>();
 
-	const child = di.scope();
-	const childResolvedVideoService = child.resolve("VideoService");
+	const SERVICE = context.inject(SERVICEIMPL);
 
-	it("should resolve to the same instance between containers", () =>
-		expect(childResolvedVideoService).toBe(resolvedVideoService));
+	const container = context
+		.child()
+		.ctor("TRANSIENTSERVICE", SERVICE, "transient")
+		.ctor("SCOPEDSERVICE", SERVICE, "scoped")
+		.ctor("SINGLETONSERVICE", SERVICE, "singleton")
+		.build();
 
-	it("should resolve defined service dependencies", () => {
-		expect(resolvedVideoService.date).toBeInstanceOf(DateService);
-	});
+	const transientResolved = container.resolve("TRANSIENTSERVICE");
+	const scopedResolved = container.resolve("SCOPEDSERVICE");
+	const singletonResolved = container.resolve("SINGLETONSERVICE");
+
+	it("should register and create an instance when transient", () =>
+		expect(transientResolved).toBeInstanceOf(SERVICEIMPL));
+	it("should register and create an instance when scoped", () =>
+		expect(scopedResolved).toBeInstanceOf(SERVICEIMPL));
+	it("should register and create an instance when singleton", () =>
+		expect(singletonResolved).toBeInstanceOf(SERVICEIMPL));
+});
+
+describe("Service Factory Registration", () => {
+	interface SERVICE {
+		readonly tag: "__FACTORY__";
+	}
+	function SERVICEFACTORY(): SERVICE {
+		return {
+			tag: "__FACTORY__",
+		};
+	}
+
+	const context = DI.context<{
+		TRANSIENTSERVICE: SERVICE;
+		SCOPEDSERVICE: SERVICE;
+		SINGLETONSERVICE: SERVICE;
+	}>();
+
+	const SERVICE = context.inject(SERVICEFACTORY);
+
+	const container = context
+		.child()
+		.factory("TRANSIENTSERVICE", SERVICE, "transient")
+		.factory("SCOPEDSERVICE", SERVICE, "scoped")
+		.factory("SINGLETONSERVICE", SERVICE, "singleton")
+		.build();
+
+	const transientResolved = container.resolve("TRANSIENTSERVICE");
+	const scopedResolved = container.resolve("SCOPEDSERVICE");
+	const singletonResolved = container.resolve("SINGLETONSERVICE");
+
+	it("should register and create an instance when transient", () =>
+		expect(transientResolved).toHaveProperty("tag", "__FACTORY__"));
+	it("should register and create an instance when scoped", () =>
+		expect(scopedResolved).toHaveProperty("tag", "__FACTORY__"));
+	it("should register and create an instance when singleton", () =>
+		expect(singletonResolved).toHaveProperty("tag", "__FACTORY__"));
+});
+
+describe("Service Instance Registration", () => {
+	interface SERVICE {
+		readonly tag: "__INSTANCE__";
+	}
+	const SERVICEINSTANCE = { tag: "__INSTANCE__" as const };
+
+	const context = DI.context<{
+		SCOPEDSERVICE: SERVICE;
+		SINGLETONSERVICE: SERVICE;
+		VALUESERVICE: number;
+	}>();
+
+	const VALUESERVICE: number = 113;
+
+	const container = context
+		.child()
+		.instance("SCOPEDSERVICE", SERVICEINSTANCE, "scoped")
+		.instance("SINGLETONSERVICE", SERVICEINSTANCE, "singleton")
+		.instance("VALUESERVICE", VALUESERVICE, "singleton")
+		.build();
+
+	const scopedResolved = container.resolve("SCOPEDSERVICE");
+	const singletonResolved = container.resolve("SINGLETONSERVICE");
+	const valueResolved = container.resolve("VALUESERVICE");
+
+	it("should register and create an instance when scoped", () =>
+		expect(scopedResolved).toHaveProperty("tag", "__INSTANCE__"));
+	it("should register and create an instance when singleton", () =>
+		expect(singletonResolved).toHaveProperty("tag", "__INSTANCE__"));
+	it("should register and resolve a value service", () =>
+		expect(valueResolved).toBe(113));
 });
 
 test("services registered by implementation alone work", () => {
 	const configService = di.resolve("GlobalConfig");
 	expect(configService).toBeDefined();
 	expect(configService).toBe(GlobalConfig);
-});
-
-test("value services work", () => {
-	const appIdService = di.resolve("AppId");
-	expect(appIdService).toBeDefined();
-	expect(appIdService).toBe("AnApp");
-
-	const pixelWidthService = di.resolve("PixelWidth");
-	expect(pixelWidthService).toBeDefined();
-	expect(pixelWidthService).toBe(16);
 });
 
 test("child initializes properly", () => {

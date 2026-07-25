@@ -1,14 +1,16 @@
-# Unused Name DI
+# Unused-Name DI
 
-Tiny and powerful strictly typed dependency injection implementation for typescript. No runtime dependencies.
+Tiny, strictly typed dependency injection implementation for typescript. No runtime dependencies, less than 1kb zipped.
 
 Featuring:
-- Container scoping, container hierarchy
-- Lazy service resolution, minimal unnecessary work
-- Typed service resolution based on key
-- Type checking when injecting services by key
-- Minimal runtime checks, static checks do the work
-- _NO_ token system, use any valid object key
+- Container scoping and hierarchy
+- Lazy service resolution
+- Typed service resolution by key
+- Type checking injected services by key
+- Low runtime overhead (up to 8 injected args)
+- No token system, use valid object keys
+
+**Contains no generated code or content and never will.**
 
 ## Getting Started
 
@@ -16,9 +18,9 @@ Featuring:
 
 To create a dependency injection [`ServiceContainer`](#servicecontainer), a `ServiceContext` must be established.
 
-A `ServiceContext` defines invariant key-to-type relationships that all [`ServiceContainer`](#servicecontainer) instances derived from it must adhere to when registering service implementations.
+A `ServiceContext` defines invariant key-to-type relationships that all `ServiceContainer` instances derived from it must adhere to when registering service implementations.
 
-It is strongly advised that the `ServiceContext` is defined in a file that only imports the _types_ of the services rather than the _implementations_, to help avoid circular dependency issues.
+It is strongly advised that the `ServiceContext` is defined in a file that only imports the types of the services rather than the implementations, to help avoid circular dependency issues.
 
 Below is an example of how to define a `ServiceContext`.
 
@@ -82,17 +84,17 @@ export const ChatServiceSecond = secondContext.inject(ChatServiceImpl, [
 
 ### ServiceContainer
 
-A `ServiceContainer` is some set of service implementations complying with the root [`ServiceContext`](#servicecontext). They can be created directly from their root [`ServiceContext`](#servicecontext), or derived from other `ServiceContainer` instances.
+A `ServiceContainer` is some set of service implementations complying with the root [`ServiceContext`](#servicecontext). They can be created directly from their root `ServiceContext`, or derived from other `ServiceContainer` instances.
 
 When creating a new `ServiceContainer`, service implementations can be specified or adjusted. The only limitations are as follows:
 
--   Registered implementations must comply with the key-to-type relationships defined in the root [`ServiceContext`](#servicecontext)
+-   Registered implementations must comply with the key-to-type relationships defined in the root `ServiceContext`
 -   Registered implementations cannot overwrite existing [singleton](#singleton) service implementations
 -   Any newly registered service implementations must have all of their service dependencies already registered.
 
 The last restriction above has the added side-effect of preventing most circular dependency situations.
 
-If service implementations need to be altered, the `child()` method found on [`ServiceContext`](#servicecontext) or `ServiceContainer` instances should be used to initialize a `ServiceContainerBuilder`.
+If service implementations need to be altered, the `child()` method found on `ServiceContext` or `ServiceContainer` instances should be used to initialize a `ServiceContainerBuilder`.
 
 If no service implementations need to be altered, the `scope()` method found on `ServiceContainer` instances can be used to directly instantiate another `ServiceContainer` with an identical set of service implementations.
 
@@ -124,7 +126,7 @@ const child = container.child()
     .factory("FileService", ..., "scoped")
     .build();
 
-// error caused due to attempted reregistration
+// type error caused due to attempted reregistration
 // of the parent's singleton service
 const invalid = child.child()
     .ctor("DateService", ..., "scoped")
@@ -159,7 +161,7 @@ const rootResolved1 = rootContainer.resolve("Service");
 
 ### Scoped
 
-Scoped services resolve to the same instance within a [`ServiceContainer`](#servicecontainer), but different instances between [`ServiceContainer`](#servicecontainer) instances.
+Scoped services resolve to the same instance within a [`ServiceContainer`](#servicecontainer), but different instances between `ServiceContainer` instances.
 
 ```typescript
 import { rootContainer } from "...";
@@ -175,7 +177,7 @@ const childResolved = childContainer.resolve("Service");
 
 ### Singleton
 
-Singleton services resolve to the same instance in a [`ServiceContainer`](#servicecontainer) and all descendant [`ServiceContainer`](#servicecontainer) instances. An important note about singleton services is that their dependencies are resolved based on their [`ServiceContainer`](#servicecontainer) of origin. Scoped dependencies will therefore be carried across [`ServiceContainer`](#servicecontainer) boundaries.
+Singleton services resolve to the same instance in a [`ServiceContainer`](#servicecontainer) and all descendant `ServiceContainer` instances. An important note about singleton services is that their dependencies are resolved based on their `ServiceContainer` of origin. Scoped dependencies will therefore be carried across `ServiceContainer` boundaries.
 
 ```typescript
 import { rootContainer } from "...";
