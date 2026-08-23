@@ -1,5 +1,10 @@
 import { INJECTED, PROVIDER } from "./const";
-import { ServiceContainerBuilder, ServiceContainerImpl } from "./container";
+import {
+	ServiceContainer,
+	ServiceContainerBuilder,
+	ServiceContainerImpl,
+	ServiceInfo,
+} from "./container";
 import {
 	Ctor,
 	CtorArgs,
@@ -21,7 +26,11 @@ export interface ServiceContext<S extends InstanceRecord = {}> {
 		...args: CreatorArgs<C> extends [] ? [args?: A] : [args: A]
 	): C & ProviderTag<A>;
 
-	child(): ServiceContainerBuilder<S>;
+	child<I extends Record<PropertyKey, ServiceInfo>>(
+		configure: (
+			builder: ServiceContainerBuilder<S>,
+		) => ServiceContainerBuilder<S, I>,
+	): ServiceContainer<S, I>;
 
 	isProvider<
 		C extends Creator,
@@ -55,17 +64,21 @@ export class ServiceContextImpl<
 		});
 	}
 
-	child(): ServiceContainerBuilder<S> {
-		return new ServiceContainerImpl(this, {});
+	child<I extends Record<PropertyKey, ServiceInfo>>(
+		configure: (
+			builder: ServiceContainerBuilder<S>,
+		) => ServiceContainerBuilder<S, I>,
+	): ServiceContainer<S, I> {
+		const builder = new ServiceContainerImpl(this, {});
+		return configure(builder).build();
 	}
 
 	isProvider<
 		C extends Creator,
 		const A extends KeysForValueTuple<S, CreatorArgs<C>>,
 	>(value: C): value is C & ProviderTag<A> {
-		if (!(PROVIDER in value)) return false;
 		const args = this.#args.get(value);
-		if (!args) return false;
+		if (!args || !(PROVIDER in value)) return false;
 		return (
 			INJECTED in value &&
 			args.every((v, i) => v === (value[INJECTED] as any[])[i])

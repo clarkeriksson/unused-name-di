@@ -105,7 +105,11 @@ export interface ServiceContainer<
 	Services extends Record<PropertyKey, ServiceInfo>,
 > {
 	resolve<const K extends keyof ContextServices>(key: K): ContextServices[K];
-	child(): ServiceContainerBuilder<ContextServices, Services>;
+	child<I extends Record<PropertyKey, ServiceInfo>>(
+		configure: (
+			builder: ServiceContainerBuilder<ContextServices, Services>,
+		) => ServiceContainerBuilder<ContextServices, I>,
+	): ServiceContainer<ContextServices, I>;
 	scope(): ServiceContainer<ContextServices, Services>;
 }
 
@@ -135,20 +139,25 @@ export class ServiceContainerImpl<
 		return this.resolver(key)();
 	}
 
-	child(): ServiceContainerBuilder<ContextServices, Services> {
+	child<I extends Record<PropertyKey, ServiceInfo>>(
+		configure: (
+			builder: ServiceContainerBuilder<ContextServices, Services>,
+		) => ServiceContainerBuilder<ContextServices, I>,
+	): ServiceContainer<ContextServices, I> {
 		const singletonResolvers: Record<PropertyKey, () => unknown> = {};
 		Object.entries(this.#impl).forEach(([k, v]) => {
 			if (v.scope === SINGLETON) singletonResolvers[k] = this.resolver(k);
 		});
-		return new ServiceContainerImpl(
+		const builder = new ServiceContainerImpl(
 			this.#ctx,
 			{ ...this.#impl },
 			singletonResolvers,
 		);
+		return configure(builder).build();
 	}
 
 	scope(): ServiceContainer<ContextServices, Services> {
-		return this.child().build();
+		return this.child((builder) => builder);
 	}
 
 	private resolver<const K extends keyof Services>(
@@ -168,6 +177,10 @@ export class ServiceContainerImpl<
 
 		const isFactory = impl.kind === FACTORY;
 		const provider = impl.provider as any;
+
+		// construct = isFactory
+		// 	? () => provider(...argResolvers.map((r) => r()))
+		// 	: () => new provider(...argResolvers.map((r) => r()));
 
 		switch (argResolvers.length) {
 			case 0: {

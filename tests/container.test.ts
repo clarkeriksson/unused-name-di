@@ -15,19 +15,19 @@ import {
 	VideoService,
 } from "./setup";
 
-const di = context
-	.child()
-	.instance("AppId", "AnApp", "singleton")
-	.instance("PixelWidth", 16, "singleton")
-	.ctor("DateService", DateService, "transient")
-	.instance("GlobalConfig", GlobalConfig, "singleton")
-	.ctor("VideoService", VideoService, "singleton")
-	.ctor("ImageService", ImageService, "scoped")
-	.ctor("FileService0", FileService0, "transient")
-	.ctor("FileService1", FileService1, "singleton")
-	.ctor("ChatService", ChatService, "transient")
-	.factory("NameService", NameServiceFactory, "singleton")
-	.build();
+const di = context.child((builder) => {
+	return builder
+		.instance("AppId", "AnApp", "singleton")
+		.instance("PixelWidth", 16, "singleton")
+		.ctor("DateService", DateService, "transient")
+		.instance("GlobalConfig", GlobalConfig, "singleton")
+		.ctor("VideoService", VideoService, "singleton")
+		.ctor("ImageService", ImageService, "scoped")
+		.ctor("FileService0", FileService0, "transient")
+		.ctor("FileService1", FileService1, "singleton")
+		.ctor("ChatService", ChatService, "transient")
+		.factory("NameService", NameServiceFactory, "singleton");
+});
 
 describe("Container Initialization", () => {
 	it("should create a defined container", () => expect(di).toBeDefined());
@@ -45,7 +45,9 @@ describe("Transient Service Resolution", () => {
 
 	const SERVICE = context.inject(SERVICEIMPL);
 
-	const root = context.child().ctor("SERVICE", SERVICE, "transient").build();
+	const root = context.child((builder) =>
+		builder.ctor("SERVICE", SERVICE, "transient"),
+	);
 	const child = root.scope();
 
 	const rootService0 = root.resolve("SERVICE");
@@ -72,7 +74,9 @@ describe("Scoped Service Resolution", () => {
 
 	const SERVICE = context.inject(SERVICEIMPL);
 
-	const root = context.child().ctor("SERVICE", SERVICE, "scoped").build();
+	const root = context.child((builder) =>
+		builder.ctor("SERVICE", SERVICE, "scoped"),
+	);
 	const child = root.scope();
 
 	const rootService0 = root.resolve("SERVICE");
@@ -99,7 +103,9 @@ describe("Singleton Service Resolution", () => {
 
 	const SERVICE = context.inject(SERVICEIMPL);
 
-	const root = context.child().ctor("SERVICE", SERVICE, "singleton").build();
+	const root = context.child((builder) =>
+		builder.ctor("SERVICE", SERVICE, "singleton"),
+	);
 	const child = root.scope();
 
 	const rootService0 = root.resolve("SERVICE");
@@ -130,12 +136,12 @@ describe("Service Constructor Registration", () => {
 
 	const SERVICE = context.inject(SERVICEIMPL);
 
-	const container = context
-		.child()
-		.ctor("TRANSIENTSERVICE", SERVICE, "transient")
-		.ctor("SCOPEDSERVICE", SERVICE, "scoped")
-		.ctor("SINGLETONSERVICE", SERVICE, "singleton")
-		.build();
+	const container = context.child((builder) =>
+		builder
+			.ctor("TRANSIENTSERVICE", SERVICE, "transient")
+			.ctor("SCOPEDSERVICE", SERVICE, "scoped")
+			.ctor("SINGLETONSERVICE", SERVICE, "singleton"),
+	);
 
 	const transientResolved = container.resolve("TRANSIENTSERVICE");
 	const scopedResolved = container.resolve("SCOPEDSERVICE");
@@ -167,12 +173,12 @@ describe("Service Factory Registration", () => {
 
 	const SERVICE = context.inject(SERVICEFACTORY);
 
-	const container = context
-		.child()
-		.factory("TRANSIENTSERVICE", SERVICE, "transient")
-		.factory("SCOPEDSERVICE", SERVICE, "scoped")
-		.factory("SINGLETONSERVICE", SERVICE, "singleton")
-		.build();
+	const container = context.child((builder) => {
+		return builder
+			.factory("TRANSIENTSERVICE", SERVICE, "transient")
+			.factory("SCOPEDSERVICE", SERVICE, "scoped")
+			.factory("SINGLETONSERVICE", SERVICE, "singleton");
+	});
 
 	const transientResolved = container.resolve("TRANSIENTSERVICE");
 	const scopedResolved = container.resolve("SCOPEDSERVICE");
@@ -200,12 +206,12 @@ describe("Service Instance Registration", () => {
 
 	const VALUESERVICE: number = 113;
 
-	const container = context
-		.child()
-		.instance("SCOPEDSERVICE", SERVICEINSTANCE, "scoped")
-		.instance("SINGLETONSERVICE", SERVICEINSTANCE, "singleton")
-		.instance("VALUESERVICE", VALUESERVICE, "singleton")
-		.build();
+	const container = context.child((builder) => {
+		return builder
+			.instance("SCOPEDSERVICE", SERVICEINSTANCE, "scoped")
+			.instance("SINGLETONSERVICE", SERVICEINSTANCE, "singleton")
+			.instance("VALUESERVICE", VALUESERVICE, "singleton");
+	});
 
 	const scopedResolved = container.resolve("SCOPEDSERVICE");
 	const singletonResolved = container.resolve("SINGLETONSERVICE");
@@ -228,10 +234,9 @@ test("services registered by implementation alone work", () => {
 test("child initializes properly", () => {
 	const sym = Symbol();
 
-	const newScope = di
-		.child()
-		.instance("TestPrimitive", sym, "singleton")
-		.build();
+	const newScope = di.child((builder) =>
+		builder.instance("TestPrimitive", sym, "singleton"),
+	);
 
 	const resolvedSym = newScope.resolve("TestPrimitive");
 	expect(resolvedSym).toBeDefined();
@@ -239,10 +244,9 @@ test("child initializes properly", () => {
 });
 
 test("non-singleton services can be overriden", () => {
-	const child = di
-		.child()
-		.ctor("ImageService", ImageServiceNew, "scoped")
-		.build();
+	const child = di.child((builder) =>
+		builder.ctor("ImageService", ImageServiceNew, "scoped"),
+	);
 
 	const image = child.resolve("ImageService");
 
