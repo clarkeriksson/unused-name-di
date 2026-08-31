@@ -7,7 +7,7 @@ export default defineConfig({
 		dts({
 			tsconfigPath: "./tsconfig.build.json",
 			entryRoot: "src",
-			outDirs: "dist",
+			outDir: "dist",
 		}),
 	],
 	build: {
@@ -27,6 +27,9 @@ export default defineConfig({
 		},
 		benchmark: {
 			include: ["benchmarks/**/*.bench.ts"],
+		},
+		coverage: {
+			provider: "v8",
 		},
 	},
 });

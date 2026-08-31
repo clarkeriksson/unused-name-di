@@ -102,7 +102,7 @@ class FileService0Impl implements FileService {
 		image: ImageService,
 		video: VideoService,
 		date: DateService,
-		px: number,
+		px: number
 	) {
 		this.date = date;
 		this.image = image;
@@ -127,7 +127,7 @@ class FileService1Impl implements FileService {
 		image: ImageService,
 		video: VideoService,
 		date: DateService,
-		px: number,
+		px: number
 	) {
 		this.date = date;
 		this.image = image;

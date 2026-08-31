@@ -32,7 +32,7 @@ describe("benchmarking service resolution", () => {
 		null as any,
 		null as any,
 		null as any,
-		16,
+		16
 	);
 	let sum = 0;
 	bench("transient", () => {
@@ -64,7 +64,7 @@ describe("benchmarking scope creation", () => {
 	});
 	bench("child", () => {
 		const child = di.child((builder) =>
-			builder.instance("TestPrimitive", Symbol(), "scoped"),
+			builder.instance("TestPrimitive", Symbol(), "scoped")
 		);
 		sum += Number(child);
 	});

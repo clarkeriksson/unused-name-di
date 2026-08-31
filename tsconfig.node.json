@@ -25,5 +25,5 @@
         "noUncheckedSideEffectImports": true,
         "noImplicitAny": true
     },
-    "include": ["bench/**/*.ts"]
+    "include": ["bench/**/*.ts", "vite.config.ts"]
 }

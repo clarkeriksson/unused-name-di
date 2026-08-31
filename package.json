@@ -1,37 +1,38 @@
 {
-  "name": "unused-name",
-  "version": "0.3.0",
-  "description": "Small dependency injection implementation with no runtime dependencies",
-  "license": "MIT",
-  "author": "Clark Eriksson",
-  "keywords": [
-    "dependency injection",
-    "dependency",
-    "injection",
-    "di",
-    "ioc",
-    "container",
-    "javascript",
-    "typescript"
-  ],
-  "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "files": [
-    "dist/"
-  ],
-  "scripts": {
-    "build": "vite build",
-    "test": "vitest --reporter=tree",
-    "bench": "vitest bench"
-  },
-  "devDependencies": {
-    "@eslint/js": "^10.0.1",
-    "@types/node": "^25.9.4",
-    "eslint": "^10.1.0",
-    "typescript": "^6.0.2",
-    "vite": "^8.0.3",
-    "vite-plugin-dts": "^4.5.4",
-    "vitest": "^4.1.2"
-  }
+	"name": "unused-name",
+	"version": "0.3.0",
+	"description": "Small dependency injection implementation with no runtime dependencies",
+	"license": "MIT",
+	"author": "Clark Eriksson",
+	"keywords": [
+		"dependency injection",
+		"dependency",
+		"injection",
+		"di",
+		"ioc",
+		"container",
+		"javascript",
+		"typescript"
+	],
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"files": [
+		"dist/"
+	],
+	"scripts": {
+		"build": "vite build",
+		"test": "vitest --reporter=tree --coverage",
+		"bench": "vitest bench"
+	},
+	"devDependencies": {
+		"@eslint/js": "^10.0.1",
+		"@types/node": "^25.9.4",
+		"@vitest/coverage-v8": "^4.1.2",
+		"eslint": "^10.1.0",
+		"typescript": "^6.0.2",
+		"vite": "^8.0.3",
+		"vite-plugin-dts": "^4.5.4",
+		"vitest": "^4.1.2"
+	}
 }
