@@ -56,6 +56,3 @@ export const INJECTED = Symbol();
 
 /** {@link Symbol} property key tagging a constructor or factory as a registered service provider. */
 export const PROVIDER = Symbol();
-
-export const CONTEXT = Symbol();
-export const CONTEXTS = Symbol();
