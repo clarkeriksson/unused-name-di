@@ -1,7 +1,8 @@
-import { ServiceContextImpl, type ServiceContext } from "./context";
-import { type InstanceRecord } from "./global";
+import { type DependencyContext } from "./types/context";
+import { type KeyTypeInvariants } from "./types/context";
+import { injector } from "./injector";
 
-const context = <T extends InstanceRecord>(): ServiceContext<T> =>
-	new ServiceContextImpl<T>();
+const context = <T extends KeyTypeInvariants>(): DependencyContext<T> =>
+	null as unknown as DependencyContext<T>;
 
-export { context };
+export { context, injector };

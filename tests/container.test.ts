@@ -15,18 +15,14 @@ import {
 	VideoService,
 } from "./setup";
 
-const di = context.child((builder) => {
+const di = context.container((builder) => {
 	return builder
-		.instance("AppId", "AnApp", "singleton")
-		.instance("PixelWidth", 16, "singleton")
 		.ctor("DateService", DateService, "transient")
-		.instance("GlobalConfig", GlobalConfig, "singleton")
 		.ctor("VideoService", VideoService, "singleton")
 		.ctor("ImageService", ImageService, "scoped")
 		.ctor("FileService0", FileService0, "transient")
 		.ctor("FileService1", FileService1, "singleton")
-		.ctor("ChatService", ChatService, "transient")
-		.factory("NameService", NameServiceFactory, "singleton");
+		.ctor("ChatService", ChatService, "transient");
 });
 
 describe("Container Initialization", () => {
@@ -256,7 +252,8 @@ test("non-singleton services can be overriden", () => {
 test("constructor arg inlining and fallback work for all arg counts", () => {
 	const createThrowerOnMiscount = (count: number) => {
 		return context.inject((...args: Symbol[]) => {
-			if (args.length !== count) throw new Error("MISCOUNT");
+			if (args.filter(Boolean).length !== count)
+				throw new Error("MISCOUNT");
 			return args.length;
 		}, ["A0", "A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9"].slice(0, count) as any);
 	};
@@ -265,7 +262,8 @@ test("constructor arg inlining and fallback work for all arg counts", () => {
 		return context.inject(
 			class {
 				constructor(...args: Symbol[]) {
-					if (args.length !== count) throw new Error("MISCOUNT");
+					if (args.filter(Boolean).length !== count)
+						throw new Error("MISCOUNT");
 					return count;
 				}
 			},

@@ -43,16 +43,3 @@ export const PROVIDER_TYPE_MAP = {
 export type ProviderKindToken = {
 	[K in keyof typeof PROVIDER_TYPE_MAP]: (typeof PROVIDER_TYPE_MAP)[K];
 }[keyof typeof PROVIDER_TYPE_MAP];
-
-/** The union type of all service provider type strings. */
-export type ProviderKindKey = keyof typeof PROVIDER_TYPE_MAP;
-
-/** Type representing the {@link ProviderKindToken} corresponding to the {@link ProviderKindKey}. */
-export type ProviderKindFromKey<K extends ProviderKindKey> =
-	(typeof PROVIDER_TYPE_MAP)[K];
-
-/** {@link Symbol} property key for the argument metadata in registered services. */
-export const INJECTED = Symbol();
-
-/** {@link Symbol} property key tagging a constructor or factory as a registered service provider. */
-export const PROVIDER = Symbol();

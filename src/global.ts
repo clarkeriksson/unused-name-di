@@ -1,5 +1,6 @@
-import { INJECTED, PROVIDER, type ScopeKey } from "./const";
+import { type ScopeKey } from "./const";
 import { type ServiceInfo } from "./container";
+import type { Provider, ProviderReturn } from "./types/provider";
 
 /**
  * Type improving the mouseover preview of the argument type.
@@ -30,94 +31,13 @@ export declare type BroadenPrimitiveConst<T> = T extends string
 	: T;
 
 /**
- * Type representing the constructor of instance type {@link T} that takes inputs of type {@link Args}.
- * @param T The instance type.
- * @param Args The argument tuple type.
- */
-export declare type Ctor<
-	T = unknown,
-	Args extends readonly any[] = readonly any[]
-> = new (...args: Args) => T;
-
-/**
- * Type representing the factory of instance type {@link T} that takes inputs of type {@link Args}.
- * @param T The instance type.
- * @param Args The argument tuple type.
- */
-export declare type Factory<
-	T = unknown,
-	Args extends readonly any[] = readonly any[]
-> = (...args: Args) => T;
-
-/**
- * Type extracting the arguments from {@link Ctor} type {@link T}.
- * @param T
- */
-export declare type CtorArgs<T> = T extends Ctor<any, infer Args>
-	? Args
-	: never;
-
-/**
- * Type extracting the arguments from {@link Factory} type {@link T}.
- * @param T
- */
-export declare type FactoryArgs<T> = T extends Factory<any, infer Args>
-	? Args
-	: never;
-
-/**
- * Type extracting the return type from {@link Ctor} type {@link T}.
- * @param T
- */
-export declare type CtorReturn<T> = T extends Ctor<infer Return, any>
-	? Return
-	: never;
-
-/**
- * Type extracting the return type from {@link Factory} type {@link T}.
- * @param T
- */
-export declare type FactoryReturn<T> = T extends Factory<infer Return, any>
-	? Return
-	: never;
-
-/**
- * Type representing the constructor or factory of instance type {@link T} that takes inputs of type {@link Args}.
- * @param T The instance type.
- * @param Args The argument tuple type.
- */
-export declare type Creator<T = unknown, Args extends readonly any[] = any[]> =
-	| Ctor<T, Args>
-	| Factory<T, Args>;
-
-/**
- * Type extracting the arguments from {@link Ctor} or {@link Factory} type {@link T}.
- * @param T
- */
-export declare type CreatorArgs<T> = T extends Ctor
-	? CtorArgs<T>
-	: T extends Factory
-	? FactoryArgs<T>
-	: never;
-
-/**
- * Type extracting the return type from {@link Ctor} or {@link Factory} type {@link T}.
- * @param T
- */
-export declare type CreatorReturn<T> = T extends Ctor
-	? CtorReturn<T>
-	: T extends Factory
-	? FactoryReturn<T>
-	: never;
-
-/**
- * Type that transforms a {@link Record} type with {@link Creator} values into a {@link Record} type with {@link CreatorReturn} values.
- * @param T The {@link Record} type with {@link Creator} values to convert.
+ * Type that transforms a {@link Record} type with {@link Provider} values into a {@link Record} type with {@link ProviderReturn} values.
+ * @param T The {@link Record} type with {@link Provider} values to convert.
  */
 export declare type CreatorMapToInstanceMap<
-	T extends Record<PropertyKey, Creator>
+	T extends Record<PropertyKey, Provider>
 > = {
-	[K in keyof T]: CreatorReturn<T[K]>;
+	[K in keyof T]: ProviderReturn<T[K]>;
 };
 
 /**
@@ -177,6 +97,9 @@ export declare type NewKey<
 	Services extends Record<PropertyKey, unknown>
 > = K extends keyof Services ? never : K;
 
+export declare const INJECTED: unique symbol;
+export declare const PROVIDER: unique symbol;
+
 /**
  * Metadata object joined with service providers to carry arg information.
  * @param Args The argument
@@ -185,3 +108,7 @@ export type ProviderTag<Args extends readonly any[] = any[]> = {
 	readonly [INJECTED]: Args;
 	readonly [PROVIDER]: true;
 };
+
+export type AnyTrue<C extends readonly boolean[]> = true extends C[number]
+	? true
+	: false;

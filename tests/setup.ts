@@ -1,4 +1,8 @@
-import { context } from "./context";
+import { type AppInvariants } from "./context";
+import { injector } from "../src";
+
+const inject = injector<AppInvariants>();
+
 export interface GlobalConfig {
 	apiKey: string;
 }
@@ -15,7 +19,7 @@ function NameServiceImplFactory(chat: ChatService): NameService {
 	return { chat };
 }
 
-export const NameServiceFactory = context.inject(NameServiceImplFactory, [
+export const NameServiceFactory = inject(NameServiceImplFactory, [
 	"ChatService",
 ]);
 
@@ -29,7 +33,7 @@ class DateServiceImpl implements DateService {
 	}
 }
 
-export const DateService = context.inject(DateServiceImpl);
+export const DateService = inject(DateServiceImpl);
 
 export interface ChatService {
 	readonly date: DateService;
@@ -48,7 +52,7 @@ class ChatServiceImpl implements ChatService {
 	}
 }
 
-export const ChatService = context.inject(ChatServiceImpl, [
+export const ChatService = inject(ChatServiceImpl, [
 	"DateService",
 	"FileService1",
 	"PixelWidth",
@@ -68,7 +72,7 @@ class ImageServiceImpl implements ImageService {
 	}
 }
 
-export const ImageService = context.inject(ImageServiceImpl, [
+export const ImageService = inject(ImageServiceImpl, [
 	"PixelWidth",
 	"VideoService",
 ]);
@@ -84,7 +88,7 @@ class VideoServiceImpl implements VideoService {
 	}
 }
 
-export const VideoService = context.inject(VideoServiceImpl, ["DateService"]);
+export const VideoService = inject(VideoServiceImpl, ["DateService"]);
 
 export interface FileService {
 	readonly date: DateService;
@@ -111,7 +115,7 @@ class FileService0Impl implements FileService {
 	}
 }
 
-export const FileService0 = context.inject(FileService0Impl, [
+export const FileService0 = inject(FileService0Impl, [
 	"ImageService",
 	"VideoService",
 	"DateService",
@@ -136,7 +140,7 @@ class FileService1Impl implements FileService {
 	}
 }
 
-export const FileService1 = context.inject(FileService1Impl, [
+export const FileService1 = inject(FileService1Impl, [
 	"ImageService",
 	"VideoService",
 	"DateService",
@@ -152,7 +156,7 @@ class ImageServiceNewImpl implements ImageService {
 	}
 }
 
-export const ImageServiceNew = context.inject(ImageServiceNewImpl, [
+export const ImageServiceNew = inject(ImageServiceNewImpl, [
 	"PixelWidth",
 	"VideoService",
 ]);

@@ -9,7 +9,7 @@ import {
 	VideoService,
 } from "./setup";
 
-export const context = DI.context<{
+export type AppInvariants = {
 	DateService: DateService;
 	AppId: string;
 	TestPrimitive: symbol;
@@ -21,4 +21,6 @@ export const context = DI.context<{
 	FileService0: FileService;
 	FileService1: FileService;
 	PixelWidth: number;
-}>();
+};
+
+export const context = DI.context<AppInvariants>();

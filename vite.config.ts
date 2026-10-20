@@ -12,10 +12,18 @@ export default defineConfig({
 	],
 	build: {
 		lib: {
-			formats: ["es"],
 			entry: ["src/index.ts"],
+			formats: ["es"],
 		},
 		outDir: "./dist/",
+		rolldownOptions: {
+			output: {
+				comments: false,
+				minify: {
+					compress: true,
+				},
+			},
+		},
 	},
 	test: {
 		environment: "node",

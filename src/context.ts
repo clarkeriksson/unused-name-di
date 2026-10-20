@@ -1,29 +1,28 @@
-import { INJECTED, PROVIDER } from "./const";
 import {
 	ServiceContainer,
 	ServiceContainerBuilder,
 	ServiceContainerImpl,
 	ServiceInfo,
 } from "./container";
+import { KeysForValueTuple, InstanceRecord, ProviderTag } from "./global";
+import { KeyTypeInvariants } from "./types/context";
 import {
-	Ctor,
-	CtorArgs,
-	Creator,
-	CreatorArgs,
-	Factory,
-	FactoryArgs,
-	KeysForValueTuple,
-	InstanceRecord,
-	ProviderTag,
-} from "./global";
+	INJECTED,
+	type Constructor,
+	type ConstructorArgs,
+	type Factory,
+	type FactoryArgs,
+	type Provider,
+	type ProviderArgs,
+} from "./types/provider";
 
 export interface ServiceContext<S extends InstanceRecord = {}> {
 	inject<
-		const C extends Creator,
-		const A extends KeysForValueTuple<S, CreatorArgs<C>>
+		const C extends Provider,
+		const A extends KeysForValueTuple<S, ProviderArgs<C>>
 	>(
 		provider: C,
-		...args: CreatorArgs<C> extends [] ? [args?: A] : [args: A]
+		...args: ProviderArgs<C> extends [] ? [args?: A] : [args: A]
 	): C & ProviderTag<A>;
 
 	child<I extends Record<PropertyKey, ServiceInfo>>(
@@ -31,43 +30,38 @@ export interface ServiceContext<S extends InstanceRecord = {}> {
 			builder: ServiceContainerBuilder<S>
 		) => ServiceContainerBuilder<S, I>
 	): ServiceContainer<S, I>;
+}
 
-	isProvider<
-		C extends Creator,
-		const A extends KeysForValueTuple<S, CreatorArgs<C>>
-	>(
-		value: C
-	): value is C & ProviderTag<A>;
-
-	readDeps<
-		C extends Creator & ProviderTag,
-		const A extends readonly any[] = C extends ProviderTag<infer Args>
-			? Args
-			: never
-	>(
-		value: C
-	): A;
+function wrapWithArgs<
+	const Invariants extends KeyTypeInvariants,
+	const TargetProvider extends Provider,
+	const InjectedKeys extends KeysForValueTuple<
+		Invariants,
+		ProviderArgs<TargetProvider>
+	>
+>(
+	provider: TargetProvider,
+	...args: ProviderArgs<TargetProvider> extends []
+		? [injected?: InjectedKeys]
+		: [injected: InjectedKeys]
+): TargetProvider & ProviderTag<InjectedKeys> {
+	return Object.setPrototypeOf(
+		Object.assign((provider as any).bind(null), { [INJECTED]: args[0] }),
+		provider
+	);
 }
 
 export class ServiceContextImpl<S extends InstanceRecord = {}>
 	implements ServiceContext<S>
 {
-	#args: Map<Creator, PropertyKey[]>;
-
-	constructor() {
-		this.#args = new Map();
-	}
-
 	inject<
-		const C extends Creator,
-		const A extends KeysForValueTuple<S, CreatorArgs<C>>
+		const C extends Provider,
+		const A extends KeysForValueTuple<S, ProviderArgs<C>>
 	>(
 		provider: C,
-		...args: CreatorArgs<C> extends [] ? [args?: A] : [args: A]
+		...args: ProviderArgs<C> extends [] ? [injected?: A] : [injected: A]
 	): C & ProviderTag<A> {
-		const argArr = (args[0] as A) ?? [];
-		this.#args.set(provider, argArr);
-		return provider as any;
+		return wrapWithArgs<S, C, A>(provider, ...args);
 	}
 
 	child<I extends Record<PropertyKey, ServiceInfo>>(
@@ -78,46 +72,22 @@ export class ServiceContextImpl<S extends InstanceRecord = {}>
 		const builder = new ServiceContainerImpl(this, {});
 		return configure(builder).build();
 	}
-
-	isProvider<
-		C extends Creator,
-		const A extends KeysForValueTuple<S, CreatorArgs<C>>
-	>(value: C): value is C & ProviderTag<A> {
-		const args = this.#args.get(value);
-		if (!Array.isArray(args)) {
-			return false;
-		}
-		return true;
-	}
-
-	readDeps<
-		C extends Creator & ProviderTag,
-		const A extends readonly any[] = C extends ProviderTag<infer Args>
-			? Args
-			: never
-	>(value: C): A {
-		const args = this.#args.get(value);
-		if (args === undefined || args === null) {
-			throw new Error();
-		}
-		return args as unknown as A;
-	}
 }
 
 export type CtorWithArgKeys<
-	Provider extends Ctor = Ctor,
-	Context extends InstanceRecord = any,
-	Args extends KeysForValueTuple<Context, CtorArgs<Provider>> = any
-> = Provider & ProviderTag<Args>;
+	P extends Constructor = Constructor,
+	C extends InstanceRecord = any,
+	A extends KeysForValueTuple<C, ConstructorArgs<P>> = any
+> = P & ProviderTag<A>;
 
 export type FactoryWithArgKeys<
-	Provider extends Factory = Factory,
-	Context extends InstanceRecord = any,
-	Args extends KeysForValueTuple<Context, FactoryArgs<Provider>> = any
-> = Provider & ProviderTag<Args>;
+	P extends Factory = Factory,
+	C extends InstanceRecord = any,
+	A extends KeysForValueTuple<C, FactoryArgs<P>> = any
+> = P & ProviderTag<A>;
 
 export type ProviderWithArgKeys<
-	Provider extends Creator = Creator,
-	Context extends InstanceRecord = any,
-	Args extends KeysForValueTuple<Context, CreatorArgs<Provider>> = any
-> = Provider & ProviderTag<Args>;
+	P extends Provider = Provider,
+	C extends InstanceRecord = any,
+	A extends KeysForValueTuple<C, ProviderArgs<P>> = any
+> = P & ProviderTag<A>;
