@@ -1,11 +1,46 @@
 import { KeyTypeInvariants } from "./types/context";
-import { Constructor, Factory, TaggedProvider } from "./types/provider";
+import {
+	Constructor,
+	Factory,
+	Provider,
+	TaggedProvider,
+} from "./types/provider";
 import { Async, Injected, ProviderKind, ProviderKindKey } from "./types/const";
+
+const tag = <
+	const Invariants extends KeyTypeInvariants,
+	const Service extends Invariants[keyof Invariants],
+	const Arguments extends readonly Invariants[keyof Invariants][],
+	const InjectedKeys extends {
+		[K in keyof Arguments]: {
+			[P in keyof Invariants]: Arguments[K] extends Invariants[P]
+				? P
+				: never;
+		}[keyof Invariants];
+	},
+	const Async extends boolean,
+	const ProviderKind extends ProviderKindKey,
+>(
+	provider: Async extends true
+		? Provider<Promise<Service>, Arguments>
+		: Provider<Service, Arguments>,
+	keys: InjectedKeys,
+	kind: ProviderKind,
+	async: Async,
+) =>
+	Object.setPrototypeOf(
+		Object.assign((provider as any).bind(null), {
+			[Injected]: keys,
+			[Async]: async,
+			[ProviderKind]: kind,
+		}),
+		provider,
+	);
 
 export const injector = <const Invariants extends KeyTypeInvariants>() =>
 	({
 		sync: {
-			constructor: <
+			ctor: <
 				const Service extends Invariants[keyof Invariants],
 				const Arguments extends readonly Invariants[keyof Invariants][],
 				const InjectedKeys extends {
@@ -27,14 +62,14 @@ export const injector = <const Invariants extends KeyTypeInvariants>() =>
 				InjectedKeys,
 				false
 			> =>
-				Object.setPrototypeOf(
-					Object.assign((provider as any).bind(null), {
-						[Injected]: args[0],
-						[Async]: false,
-						[ProviderKind]: "constructor",
-					}),
-					provider,
-				),
+				tag<
+					Invariants,
+					Service,
+					Arguments,
+					InjectedKeys,
+					false,
+					"constructor"
+				>(provider, (args[0] ?? []) as any, "constructor", false),
 			factory: <
 				const Service extends Invariants[keyof Invariants],
 				const Arguments extends readonly Invariants[keyof Invariants][],
@@ -57,17 +92,17 @@ export const injector = <const Invariants extends KeyTypeInvariants>() =>
 				InjectedKeys,
 				false
 			> =>
-				Object.setPrototypeOf(
-					Object.assign((provider as any).bind(null), {
-						[Injected]: args[0],
-						[Async]: false,
-						[ProviderKind]: "factory",
-					}),
-					provider,
-				),
+				tag<
+					Invariants,
+					Service,
+					Arguments,
+					InjectedKeys,
+					false,
+					"factory"
+				>(provider, (args[0] ?? []) as any, "factory", false),
 		} as const,
 		async: {
-			constructor: <
+			ctor: <
 				const Service extends Invariants[keyof Invariants],
 				const Arguments extends readonly Invariants[keyof Invariants][],
 				const InjectedKeys extends {
@@ -89,14 +124,14 @@ export const injector = <const Invariants extends KeyTypeInvariants>() =>
 				InjectedKeys,
 				true
 			> =>
-				Object.setPrototypeOf(
-					Object.assign((provider as any).bind(null), {
-						[Injected]: args[0],
-						[Async]: true,
-						[ProviderKind]: "constructor",
-					}),
-					provider,
-				),
+				tag<
+					Invariants,
+					Service,
+					Arguments,
+					InjectedKeys,
+					true,
+					"constructor"
+				>(provider, (args[0] ?? []) as any, "constructor", true),
 			factory: <
 				const Service extends Invariants[keyof Invariants],
 				const Arguments extends readonly Invariants[keyof Invariants][],
@@ -119,13 +154,13 @@ export const injector = <const Invariants extends KeyTypeInvariants>() =>
 				InjectedKeys,
 				true
 			> =>
-				Object.setPrototypeOf(
-					Object.assign((provider as any).bind(null), {
-						[Injected]: args[0],
-						[Async]: true,
-						[ProviderKind]: "factory",
-					}),
-					provider,
-				),
+				tag<
+					Invariants,
+					Service,
+					Arguments,
+					InjectedKeys,
+					true,
+					"factory"
+				>(provider, (args[0] ?? []) as any, "factory", true),
 		} as const,
 	}) as const;
