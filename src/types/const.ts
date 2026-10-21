@@ -1,5 +1,6 @@
-export type ProviderScope = "transient" | "scoped" | "singleton";
-export type ProviderKind = "constructor" | "factory" | "instance";
+export type ProviderScopeKey = "transient" | "scoped" | "singleton";
+export type ProviderKindKey = "constructor" | "factory" | "instance";
 
-export const INJECTED = Symbol();
-export const PROVIDER = Symbol();
+export const Injected = Symbol();
+export const Async = Symbol();
+export const ProviderKind = Symbol();

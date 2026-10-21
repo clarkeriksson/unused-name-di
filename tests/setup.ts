@@ -15,11 +15,11 @@ export interface NameService {
 	chat: ChatService;
 }
 
-function NameServiceImplFactory(chat: ChatService): NameService {
+async function NameServiceImplFactory(chat: ChatService): Promise<NameService> {
 	return { chat };
 }
 
-export const NameServiceFactory = inject(NameServiceImplFactory, [
+export const NameServiceFactory = inject.async.factory(NameServiceImplFactory, [
 	"ChatService",
 ]);
 
@@ -33,7 +33,7 @@ class DateServiceImpl implements DateService {
 	}
 }
 
-export const DateService = inject(DateServiceImpl);
+export const DateService = inject.sync.constructor(DateServiceImpl);
 
 export interface ChatService {
 	readonly date: DateService;
@@ -52,7 +52,7 @@ class ChatServiceImpl implements ChatService {
 	}
 }
 
-export const ChatService = inject(ChatServiceImpl, [
+export const ChatService = inject.sync.constructor(ChatServiceImpl, [
 	"DateService",
 	"FileService1",
 	"PixelWidth",
@@ -72,7 +72,7 @@ class ImageServiceImpl implements ImageService {
 	}
 }
 
-export const ImageService = inject(ImageServiceImpl, [
+export const ImageService = inject.sync.constructor(ImageServiceImpl, [
 	"PixelWidth",
 	"VideoService",
 ]);
@@ -88,7 +88,9 @@ class VideoServiceImpl implements VideoService {
 	}
 }
 
-export const VideoService = inject(VideoServiceImpl, ["DateService"]);
+export const VideoService = inject.sync.constructor(VideoServiceImpl, [
+	"DateService",
+]);
 
 export interface FileService {
 	readonly date: DateService;
@@ -106,7 +108,7 @@ class FileService0Impl implements FileService {
 		image: ImageService,
 		video: VideoService,
 		date: DateService,
-		px: number
+		px: number,
 	) {
 		this.date = date;
 		this.image = image;
@@ -115,7 +117,7 @@ class FileService0Impl implements FileService {
 	}
 }
 
-export const FileService0 = inject(FileService0Impl, [
+export const FileService0 = inject.sync.constructor(FileService0Impl, [
 	"ImageService",
 	"VideoService",
 	"DateService",
@@ -131,7 +133,7 @@ class FileService1Impl implements FileService {
 		image: ImageService,
 		video: VideoService,
 		date: DateService,
-		px: number
+		px: number,
 	) {
 		this.date = date;
 		this.image = image;
@@ -140,7 +142,7 @@ class FileService1Impl implements FileService {
 	}
 }
 
-export const FileService1 = inject(FileService1Impl, [
+export const FileService1 = inject.sync.constructor(FileService1Impl, [
 	"ImageService",
 	"VideoService",
 	"DateService",
@@ -156,7 +158,7 @@ class ImageServiceNewImpl implements ImageService {
 	}
 }
 
-export const ImageServiceNew = inject(ImageServiceNewImpl, [
+export const ImageServiceNew = inject.sync.constructor(ImageServiceNewImpl, [
 	"PixelWidth",
 	"VideoService",
 ]);

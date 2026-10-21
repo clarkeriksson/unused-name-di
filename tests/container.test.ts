@@ -17,7 +17,18 @@ import {
 
 const di = context.container((builder) => {
 	return builder
-		.ctor("DateService", DateService, "transient")
+		.ctor(
+			"NameService",
+			async () => (await import("./setup")).NameServiceFactory,
+			"transient",
+			{ lazy: true },
+		)
+		.ctor(
+			"DateService",
+			async () => (await import("./setup")).DateService,
+			"transient",
+			{ lazy: true },
+		)
 		.ctor("VideoService", VideoService, "singleton")
 		.ctor("ImageService", ImageService, "scoped")
 		.ctor("FileService0", FileService0, "transient")
@@ -42,7 +53,7 @@ describe("Transient Service Resolution", () => {
 	const SERVICE = context.inject(SERVICEIMPL);
 
 	const root = context.child((builder) =>
-		builder.ctor("SERVICE", SERVICE, "transient")
+		builder.ctor("SERVICE", SERVICE, "transient"),
 	);
 	const child = root.scope();
 
@@ -71,7 +82,7 @@ describe("Scoped Service Resolution", () => {
 	const SERVICE = context.inject(SERVICEIMPL);
 
 	const root = context.child((builder) =>
-		builder.ctor("SERVICE", SERVICE, "scoped")
+		builder.ctor("SERVICE", SERVICE, "scoped"),
 	);
 	const child = root.scope();
 
@@ -100,7 +111,7 @@ describe("Singleton Service Resolution", () => {
 	const SERVICE = context.inject(SERVICEIMPL);
 
 	const root = context.child((builder) =>
-		builder.ctor("SERVICE", SERVICE, "singleton")
+		builder.ctor("SERVICE", SERVICE, "singleton"),
 	);
 	const child = root.scope();
 
@@ -136,7 +147,7 @@ describe("Service Constructor Registration", () => {
 		builder
 			.ctor("TRANSIENTSERVICE", SERVICE, "transient")
 			.ctor("SCOPEDSERVICE", SERVICE, "scoped")
-			.ctor("SINGLETONSERVICE", SERVICE, "singleton")
+			.ctor("SINGLETONSERVICE", SERVICE, "singleton"),
 	);
 
 	const transientResolved = container.resolve("TRANSIENTSERVICE");
@@ -231,7 +242,7 @@ test("child initializes properly", () => {
 	const sym = Symbol();
 
 	const newScope = di.child((builder) =>
-		builder.instance("TestPrimitive", sym, "singleton")
+		builder.instance("TestPrimitive", sym, "singleton"),
 	);
 
 	const resolvedSym = newScope.resolve("TestPrimitive");
@@ -241,7 +252,7 @@ test("child initializes properly", () => {
 
 test("non-singleton services can be overriden", () => {
 	const child = di.child((builder) =>
-		builder.ctor("ImageService", ImageServiceNew, "scoped")
+		builder.ctor("ImageService", ImageServiceNew, "scoped"),
 	);
 
 	const image = child.resolve("ImageService");
@@ -251,11 +262,17 @@ test("non-singleton services can be overriden", () => {
 
 test("constructor arg inlining and fallback work for all arg counts", () => {
 	const createThrowerOnMiscount = (count: number) => {
-		return context.inject((...args: Symbol[]) => {
-			if (args.filter(Boolean).length !== count)
-				throw new Error("MISCOUNT");
-			return args.length;
-		}, ["A0", "A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9"].slice(0, count) as any);
+		return context.inject(
+			(...args: Symbol[]) => {
+				if (args.filter(Boolean).length !== count)
+					throw new Error("MISCOUNT");
+				return args.length;
+			},
+			["A0", "A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9"].slice(
+				0,
+				count,
+			) as any,
+		);
 	};
 
 	const createClassThrowerOnMiscount = (count: number) => {
@@ -269,8 +286,8 @@ test("constructor arg inlining and fallback work for all arg counts", () => {
 			},
 			["A0", "A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9"].slice(
 				0,
-				count
-			) as any
+				count,
+			) as any,
 		);
 	};
 
@@ -338,7 +355,7 @@ test("constructor arg inlining and fallback work for all arg counts", () => {
 			.ctor("C6", createClassThrowerOnMiscount(6) as any, "transient")
 			.ctor("C7", createClassThrowerOnMiscount(7) as any, "transient")
 			.ctor("C8", createClassThrowerOnMiscount(8) as any, "transient")
-			.ctor("C9", createClassThrowerOnMiscount(9) as any, "transient")
+			.ctor("C9", createClassThrowerOnMiscount(9) as any, "transient"),
 	);
 
 	expect(container.resolve("F0")).toBeDefined();

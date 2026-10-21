@@ -32,7 +32,7 @@ export interface ServiceInfo<
 	Provider extends ProviderWithArgKeys = ProviderWithArgKeys,
 	Scope extends ScopeKey = ScopeKey,
 	Lazy extends boolean = false,
-	Async extends boolean = false
+	Async extends boolean = false,
 > {
 	readonly provider: Lazy extends true ? () => Promise<Provider> : Provider;
 	readonly scope: ScopeTokenFromKey<Scope>;
@@ -41,20 +41,20 @@ export interface ServiceInfo<
 
 export interface ServiceContainerBuilder<
 	ContextServices extends InstanceRecord,
-	Services extends Record<PropertyKey, ServiceInfo> = {}
+	Services extends Record<PropertyKey, ServiceInfo> = {},
 > {
 	ctor<
 		const K extends keyof ContextServices,
 		const P extends CtorWithArgKeys<
-			Constructor<ContextServices[K]>,
+			Constructor<ContextServices[K], unknown[]>,
 			MapToProperty<Services, "provider">,
 			KeysForValueTuple<Services, any>
 		>,
-		const U extends ScopeKey
+		const U extends ScopeKey,
 	>(
 		key: KeyIfExtensible<Services, K>,
 		provider: P,
-		scope: U
+		scope: U,
 	): ServiceContainerBuilder<
 		ContextServices,
 		Omit<Services, K> & {
@@ -65,15 +65,15 @@ export interface ServiceContainerBuilder<
 	factory<
 		const K extends keyof ContextServices,
 		const P extends FactoryWithArgKeys<
-			Factory<ContextServices[K]>,
+			Factory<ContextServices[K], unknown[]>,
 			MapToProperty<Services, "provider">,
 			KeysForValueTuple<Services, any>
 		>,
-		const U extends ScopeKey
+		const U extends ScopeKey,
 	>(
 		key: KeyIfExtensible<Services, K>,
 		provider: P,
-		scope: U
+		scope: U,
 	): ServiceContainerBuilder<
 		ContextServices,
 		Omit<Services, K> & {
@@ -84,16 +84,16 @@ export interface ServiceContainerBuilder<
 	instance<
 		const K extends keyof ContextServices,
 		const I extends ContextServices[K],
-		const U extends Exclude<ScopeKey, "transient">
+		const U extends Exclude<ScopeKey, "transient">,
 	>(
 		key: KeyIfExtensible<Services, K>,
 		instance: I,
-		scope: U
+		scope: U,
 	): ServiceContainerBuilder<
 		ContextServices,
 		Omit<Services, K> & {
 			[Key in K]: ServiceInfo<
-				Factory<BroadenPrimitiveConst<I>> & ProviderTag<[]>,
+				Factory<BroadenPrimitiveConst<I>, []> & ProviderTag<[]>,
 				U
 			>;
 		}
@@ -104,21 +104,22 @@ export interface ServiceContainerBuilder<
 
 export interface ServiceContainer<
 	ContextServices extends InstanceRecord,
-	Services extends Record<PropertyKey, ServiceInfo>
+	Services extends Record<PropertyKey, ServiceInfo>,
 > {
 	resolve<const K extends keyof ContextServices>(key: K): ContextServices[K];
 	child<I extends Record<PropertyKey, ServiceInfo>>(
 		configure: (
-			builder: ServiceContainerBuilder<ContextServices, Services>
-		) => ServiceContainerBuilder<ContextServices, I>
+			builder: ServiceContainerBuilder<ContextServices, Services>,
+		) => ServiceContainerBuilder<ContextServices, I>,
 	): ServiceContainer<ContextServices, I>;
 	scope(): ServiceContainer<ContextServices, Services>;
 }
 
 export class ServiceContainerImpl<
 	ContextServices extends InstanceRecord,
-	Services extends Record<PropertyKey, ServiceInfo>
-> implements
+	Services extends Record<PropertyKey, ServiceInfo>,
+>
+	implements
 		ServiceContainer<ContextServices, Services>,
 		ServiceContainerBuilder<ContextServices, Services>
 {
@@ -130,7 +131,7 @@ export class ServiceContainerImpl<
 	constructor(
 		context: ServiceContext<ContextServices>,
 		impl: Services,
-		resolvers?: Record<PropertyKey, () => unknown>
+		resolvers?: Record<PropertyKey, () => unknown>,
 	) {
 		this.#ctx = context;
 		this.#impl = impl;
@@ -143,8 +144,8 @@ export class ServiceContainerImpl<
 
 	child<I extends Record<PropertyKey, ServiceInfo>>(
 		configure: (
-			builder: ServiceContainerBuilder<ContextServices, Services>
-		) => ServiceContainerBuilder<ContextServices, I>
+			builder: ServiceContainerBuilder<ContextServices, Services>,
+		) => ServiceContainerBuilder<ContextServices, I>,
 	): ServiceContainer<ContextServices, I> {
 		const singletonResolvers: Record<PropertyKey, () => unknown> = {};
 		Object.entries(this.#impl).forEach(([k, v]) => {
@@ -153,7 +154,7 @@ export class ServiceContainerImpl<
 		const builder = new ServiceContainerImpl(
 			this.#ctx,
 			{ ...this.#impl },
-			singletonResolvers
+			singletonResolvers,
 		);
 		return configure(builder).build();
 	}
@@ -163,7 +164,7 @@ export class ServiceContainerImpl<
 	}
 
 	private resolver<const K extends keyof Services>(
-		key: K
+		key: K,
 	): () => ContextServices[K] {
 		const cached = this.#resolvers[key];
 		if (cached) return cached as any;
@@ -172,7 +173,7 @@ export class ServiceContainerImpl<
 		const deps: PropertyKey[] = this.#ctx.readDeps(impl.provider);
 
 		const argResolvers = deps.map((k) =>
-			this.resolver(k as keyof ContextServices)
+			this.resolver(k as keyof ContextServices),
 		);
 
 		const isFactory = impl.kind === FACTORY;
@@ -191,7 +192,7 @@ export class ServiceContainerImpl<
 							instance ??= construct();
 							return instance;
 						};
-				  })();
+					})();
 
 		this.#resolvers[key] = resolver;
 		return resolver;
@@ -204,11 +205,11 @@ export class ServiceContainerImpl<
 			MapToProperty<Services, "provider">,
 			KeysForValueTuple<Services, any>
 		>,
-		const U extends ScopeKey
+		const U extends ScopeKey,
 	>(
 		key: KeyIfExtensible<Services, K>,
 		provider: P,
-		scope: U
+		scope: U,
 	): ServiceContainerBuilder<
 		ContextServices,
 		Omit<Services, K> & {
@@ -235,11 +236,11 @@ export class ServiceContainerImpl<
 			MapToProperty<Services, "provider">,
 			KeysForValueTuple<Services, any>
 		>,
-		const U extends ScopeKey
+		const U extends ScopeKey,
 	>(
 		key: KeyIfExtensible<Services, K>,
 		provider: P,
-		scope: U
+		scope: U,
 	): ServiceContainerBuilder<
 		ContextServices,
 		Omit<Services, K> & {
@@ -262,11 +263,11 @@ export class ServiceContainerImpl<
 	instance<
 		const K extends keyof ContextServices,
 		const I extends ContextServices[K],
-		const U extends ScopeKey
+		const U extends ScopeKey,
 	>(
 		key: KeyIfExtensible<Services, K>,
 		instance: I,
-		scope: U
+		scope: U,
 	): ServiceContainerBuilder<
 		ContextServices,
 		Omit<Services, K> & {
@@ -297,7 +298,7 @@ export class ServiceContainerImpl<
 		return new ServiceContainerImpl(
 			this.#ctx,
 			this.#impl as Services,
-			this.#resolvers
+			this.#resolvers,
 		);
 	}
 }
