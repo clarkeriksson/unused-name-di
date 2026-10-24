@@ -161,6 +161,10 @@ export class DependencyContainerImpl<
 		() => any
 	>;
 
+	public resolve<const K extends keyof Providers>(
+		key: K,
+	): DependencyResolverReturn<Invariants, Providers, K> {}
+
 	private resolverFromParts(
 		key: keyof Providers,
 		info: ProviderInfo,
@@ -198,7 +202,7 @@ export class DependencyContainerImpl<
 		| Promise<() => DependencyResolverReturn<Invariants, Providers, Key>>
 		| (() => DependencyResolverReturn<Invariants, Providers, Key>) {
 		const cached = this.#resolvers[key];
-		if (cached) return cached as any;
+		if (cached) return cached() as any;
 
 		const info: ProviderInfo = this.#impl[key];
 		if ("importProvider" in info) {
@@ -212,7 +216,7 @@ export class DependencyContainerImpl<
 					return Promise.all(deps);
 				})
 				.then((resolvers) => {
-					return this.resolverFromParts(key, info, resolvers);
+					return this.resolverFromParts(key, info, resolvers)();
 				});
 		} else {
 			const resolvers = info.provider[INJECTED_KEYS].map(
@@ -220,10 +224,10 @@ export class DependencyContainerImpl<
 			);
 			if (resolvers.some((r: any) => r instanceof Promise)) {
 				return Promise.all(resolvers).then((resolvers) => {
-					return this.resolverFromParts(key, info, resolvers);
+					return this.resolverFromParts(key, info, resolvers)();
 				});
 			} else {
-				return this.resolverFromParts(key, info, resolvers);
+				return this.resolverFromParts(key, info, resolvers)();
 			}
 		}
 	}
