@@ -1,6 +1,13 @@
-export type ProviderScopeKey = "transient" | "scoped" | "singleton";
-export type ProviderKindKey = "constructor" | "factory" | "instance";
+export type DependencyScope = "transient" | "scoped" | "singleton";
 
-export const Injected = Symbol();
-export const Async = Symbol();
-export const ProviderKind = Symbol();
+export const SyncReturn = Symbol();
+export const AsyncReturn = Symbol();
+export type ReturnKind = typeof SyncReturn | typeof AsyncReturn;
+
+export const ConstructorProvider = Symbol();
+export const FactoryProvider = Symbol();
+export type ProviderKind = typeof ConstructorProvider | typeof FactoryProvider;
+
+export const INJECTED_KEYS = Symbol();
+export const RETURN_KIND = Symbol();
+export const PROVIDER_KIND = Symbol();

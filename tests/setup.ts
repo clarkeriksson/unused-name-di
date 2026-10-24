@@ -15,11 +15,11 @@ export interface NameService {
 	chat: ChatService;
 }
 
-async function NameServiceImplFactory(chat: ChatService): Promise<NameService> {
+function NameServiceImplFactory(chat: ChatService): NameService {
 	return { chat };
 }
 
-export const NameServiceFactory = inject.async.factory(NameServiceImplFactory, [
+export const NameServiceFactory = inject.sync.factory(NameServiceImplFactory, [
 	"ChatService",
 ]);
 
@@ -33,7 +33,7 @@ class DateServiceImpl implements DateService {
 	}
 }
 
-export const DateService = inject.sync.constructor(DateServiceImpl);
+export const DateService = inject.sync.ctor(DateServiceImpl);
 
 export interface ChatService {
 	readonly date: DateService;
@@ -52,7 +52,9 @@ class ChatServiceImpl implements ChatService {
 	}
 }
 
-export const ChatService = inject.sync.constructor(ChatServiceImpl, [
+export const PixelWidth = inject.async.factory(async () => 16 as number);
+
+export const ChatService = inject.sync.ctor(ChatServiceImpl, [
 	"DateService",
 	"FileService1",
 	"PixelWidth",
@@ -72,7 +74,7 @@ class ImageServiceImpl implements ImageService {
 	}
 }
 
-export const ImageService = inject.sync.constructor(ImageServiceImpl, [
+export const ImageService = inject.sync.ctor(ImageServiceImpl, [
 	"PixelWidth",
 	"VideoService",
 ]);
@@ -88,9 +90,7 @@ class VideoServiceImpl implements VideoService {
 	}
 }
 
-export const VideoService = inject.sync.constructor(VideoServiceImpl, [
-	"DateService",
-]);
+export const VideoService = inject.sync.ctor(VideoServiceImpl, ["DateService"]);
 
 export interface FileService {
 	readonly date: DateService;
@@ -117,7 +117,7 @@ class FileService0Impl implements FileService {
 	}
 }
 
-export const FileService0 = inject.sync.constructor(FileService0Impl, [
+export const FileService0 = inject.sync.ctor(FileService0Impl, [
 	"ImageService",
 	"VideoService",
 	"DateService",
@@ -142,7 +142,7 @@ class FileService1Impl implements FileService {
 	}
 }
 
-export const FileService1 = inject.sync.constructor(FileService1Impl, [
+export const FileService1 = inject.sync.ctor(FileService1Impl, [
 	"ImageService",
 	"VideoService",
 	"DateService",
@@ -158,7 +158,7 @@ class ImageServiceNewImpl implements ImageService {
 	}
 }
 
-export const ImageServiceNew = inject.sync.constructor(ImageServiceNewImpl, [
+export const ImageServiceNew = inject.sync.ctor(ImageServiceNewImpl, [
 	"PixelWidth",
 	"VideoService",
 ]);

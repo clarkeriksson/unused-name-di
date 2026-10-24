@@ -12,29 +12,30 @@ import {
 	ImageService,
 	ImageServiceNew,
 	NameServiceFactory,
+	PixelWidth,
 	VideoService,
 } from "./setup";
 
 const di = context.container((builder) => {
 	return builder
-		.ctor(
-			"NameService",
-			async () => (await import("./setup")).NameServiceFactory,
-			"transient",
-			{ lazy: true },
-		)
-		.ctor(
-			"DateService",
-			async () => (await import("./setup")).DateService,
-			"transient",
-			{ lazy: true },
-		)
-		.ctor("VideoService", VideoService, "singleton")
+		.ctor("DateService", DateService, "transient")
+		.factory("PixelWidth", PixelWidth, "singleton")
+		.ctor("VideoService", VideoService, "transient")
 		.ctor("ImageService", ImageService, "scoped")
+		.ctor("ChatService", ChatService, "scoped")
+		.factory("NameService", NameServiceFactory, "transient")
 		.ctor("FileService0", FileService0, "transient")
-		.ctor("FileService1", FileService1, "singleton")
-		.ctor("ChatService", ChatService, "transient");
+		.lazyCtor("FileService1", async () => FileService1, "singleton");
 });
+
+const dateService = di.resolve("DateService");
+const pixelWidthService = di.resolve("PixelWidth");
+const videoService = di.resolve("VideoService");
+const imageService = di.resolve("ImageService");
+const chatService = di.resolve("ChatService");
+const nameService = await di.resolve("NameService");
+const fileService0 = di.resolve("FileService0");
+const fileService1 = di.resolve("FileService1");
 
 describe("Container Initialization", () => {
 	it("should create a defined container", () => expect(di).toBeDefined());
@@ -48,9 +49,13 @@ describe("Transient Service Resolution", () => {
 		readonly tag = "__TRANSIENT__";
 	}
 
-	const context = DI.context<{ SERVICE: SERVICE }>();
+	type TestInvariants = { SERVICE: SERVICE };
 
-	const SERVICE = context.inject(SERVICEIMPL);
+	const context = DI.context<TestInvariants>();
+
+	const inject = DI.injector<TestInvariants>();
+
+	const SERVICE = inject.sync.ctor(SERVICEIMPL);
 
 	const root = context.child((builder) =>
 		builder.ctor("SERVICE", SERVICE, "transient"),

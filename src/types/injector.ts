@@ -1,38 +1,46 @@
-import { KeyTypeInvariants } from "./types/context";
+import { BroadenPrimitiveConst, KeyTypeInvariants } from "./context";
 import {
 	Constructor,
 	Factory,
+	KeysFromTypes,
 	Provider,
+	TaggedAsyncConstructor,
+	TaggedAsyncFactory,
 	TaggedProvider,
-} from "./types/provider";
-import { Async, Injected, ProviderKind, ProviderKindKey } from "./types/const";
+	TaggedSyncConstructor,
+	TaggedSyncFactory,
+} from "./provider";
+import {
+	ReturnKind,
+	INJECTED_KEYS,
+	PROVIDER_KIND,
+	ProviderKind,
+	RETURN_KIND,
+	SyncReturn,
+	AsyncReturn,
+	ConstructorProvider,
+	FactoryProvider,
+} from "./const";
 
 const tag = <
 	const Invariants extends KeyTypeInvariants,
 	const Service extends Invariants[keyof Invariants],
 	const Arguments extends readonly Invariants[keyof Invariants][],
-	const InjectedKeys extends {
-		[K in keyof Arguments]: {
-			[P in keyof Invariants]: Arguments[K] extends Invariants[P]
-				? P
-				: never;
-		}[keyof Invariants];
-	},
-	const Async extends boolean,
-	const ProviderKind extends ProviderKindKey,
+	const InjectedKeys extends KeysFromTypes<Invariants, Arguments>,
+	const Return extends ReturnKind,
 >(
-	provider: Async extends true
+	provider: Return extends typeof AsyncReturn
 		? Provider<Promise<Service>, Arguments>
 		: Provider<Service, Arguments>,
 	keys: InjectedKeys,
 	kind: ProviderKind,
-	async: Async,
+	async: Return,
 ) =>
 	Object.setPrototypeOf(
 		Object.assign((provider as any).bind(null), {
-			[Injected]: keys,
-			[Async]: async,
-			[ProviderKind]: kind,
+			[INJECTED_KEYS]: keys,
+			[RETURN_KIND]: async,
+			[PROVIDER_KIND]: kind,
 		}),
 		provider,
 	);
@@ -43,124 +51,112 @@ export const injector = <const Invariants extends KeyTypeInvariants>() =>
 			ctor: <
 				const Service extends Invariants[keyof Invariants],
 				const Arguments extends readonly Invariants[keyof Invariants][],
-				const InjectedKeys extends {
-					[K in keyof Arguments]: {
-						[P in keyof Invariants]: Arguments[K] extends Invariants[P]
-							? P
-							: never;
-					}[keyof Invariants];
-				},
+				const InjectedKeys extends KeysFromTypes<Invariants, Arguments>,
 			>(
 				provider: Constructor<Service, Arguments>,
 				...args: [] extends Arguments
 					? [injected?: InjectedKeys]
 					: [injected: InjectedKeys]
-			): TaggedProvider<
+			): TaggedSyncConstructor<
 				Invariants,
 				Service,
 				Arguments,
-				InjectedKeys,
-				false
+				InjectedKeys
 			> =>
 				tag<
 					Invariants,
 					Service,
 					Arguments,
 					InjectedKeys,
-					false,
-					"constructor"
-				>(provider, (args[0] ?? []) as any, "constructor", false),
+					typeof SyncReturn
+				>(
+					provider,
+					(args[0] ?? []) as any,
+					ConstructorProvider,
+					SyncReturn,
+				),
 			factory: <
 				const Service extends Invariants[keyof Invariants],
 				const Arguments extends readonly Invariants[keyof Invariants][],
-				const InjectedKeys extends {
-					[K in keyof Arguments]: {
-						[P in keyof Invariants]: Arguments[K] extends Invariants[P]
-							? P
-							: never;
-					}[keyof Invariants];
-				},
+				const InjectedKeys extends KeysFromTypes<Invariants, Arguments>,
 			>(
 				provider: Factory<Service, Arguments>,
 				...args: [] extends Arguments
 					? [injected?: InjectedKeys]
 					: [injected: InjectedKeys]
-			): TaggedProvider<
+			): TaggedSyncFactory<
 				Invariants,
 				Service,
 				Arguments,
-				InjectedKeys,
-				false
+				InjectedKeys
 			> =>
 				tag<
 					Invariants,
 					Service,
 					Arguments,
 					InjectedKeys,
-					false,
-					"factory"
-				>(provider, (args[0] ?? []) as any, "factory", false),
+					typeof SyncReturn
+				>(
+					provider,
+					(args[0] ?? []) as any,
+					FactoryProvider,
+					SyncReturn,
+				),
 		} as const,
 		async: {
 			ctor: <
 				const Service extends Invariants[keyof Invariants],
 				const Arguments extends readonly Invariants[keyof Invariants][],
-				const InjectedKeys extends {
-					[K in keyof Arguments]: {
-						[P in keyof Invariants]: Arguments[K] extends Invariants[P]
-							? P
-							: never;
-					}[keyof Invariants];
-				},
+				const InjectedKeys extends KeysFromTypes<Invariants, Arguments>,
 			>(
 				provider: Constructor<Promise<Service>, Arguments>,
 				...args: [] extends Arguments
 					? [injected?: InjectedKeys]
 					: [injected: InjectedKeys]
-			): TaggedProvider<
+			): TaggedAsyncConstructor<
 				Invariants,
 				Service,
 				Arguments,
-				InjectedKeys,
-				true
+				InjectedKeys
 			> =>
 				tag<
 					Invariants,
 					Service,
 					Arguments,
 					InjectedKeys,
-					true,
-					"constructor"
-				>(provider, (args[0] ?? []) as any, "constructor", true),
+					typeof AsyncReturn
+				>(
+					provider,
+					(args[0] ?? []) as any,
+					ConstructorProvider,
+					AsyncReturn,
+				),
 			factory: <
 				const Service extends Invariants[keyof Invariants],
 				const Arguments extends readonly Invariants[keyof Invariants][],
-				const InjectedKeys extends {
-					[K in keyof Arguments]: {
-						[P in keyof Invariants]: Arguments[K] extends Invariants[P]
-							? P
-							: never;
-					}[keyof Invariants];
-				},
+				const InjectedKeys extends KeysFromTypes<Invariants, Arguments>,
 			>(
 				provider: Factory<Promise<Service>, Arguments>,
 				...args: [] extends Arguments
 					? [injected?: InjectedKeys]
 					: [injected: InjectedKeys]
-			): TaggedProvider<
+			): TaggedAsyncFactory<
 				Invariants,
 				Service,
 				Arguments,
-				InjectedKeys,
-				true
+				InjectedKeys
 			> =>
 				tag<
 					Invariants,
 					Service,
 					Arguments,
 					InjectedKeys,
-					true,
-					"factory"
-				>(provider, (args[0] ?? []) as any, "factory", true),
+					typeof AsyncReturn
+				>(
+					provider,
+					(args[0] ?? []) as any,
+					FactoryProvider,
+					AsyncReturn,
+				),
 		} as const,
 	}) as const;
