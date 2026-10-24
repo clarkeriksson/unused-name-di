@@ -16,6 +16,13 @@ import {
 	VideoService,
 } from "./setup";
 
+const info = {
+	provider: null,
+	async runtimeProvider() {
+		this.provider = (await import("./setup")).ChatService as any;
+	},
+};
+
 const di = context.container((builder) => {
 	return builder
 		.ctor("DateService", DateService, "transient")

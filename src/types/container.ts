@@ -16,7 +16,7 @@ import {
 	RequiresAsyncResolver,
 	TaggedConstructor,
 	TaggedFactory,
-	TaggedProvider,
+	ProviderRegistration,
 } from "./provider";
 
 /**
@@ -42,7 +42,7 @@ import {
 
 export type ProviderRegistrations<Invariants extends KeyTypeInvariants> = {
 	[Key in keyof Invariants]?: ProviderInfo<
-		TaggedProvider<any, any, any, any>,
+		ProviderRegistration<any, any, any, any>,
 		DependencyScope
 	>;
 };
@@ -163,22 +163,41 @@ export class DependencyContainerImpl<
 
 	public resolve<const K extends keyof Providers>(
 		key: K,
-	): DependencyResolverReturn<Invariants, Providers, K> {}
+	): DependencyResolverReturn<Invariants, Providers, K> {
+		const cached = this.#resolvers[key];
+		if (cached)
+			return cached() as DependencyResolverReturn<
+				Invariants,
+				Providers,
+				K
+			>;
 
-	private resolverFromParts(
-		key: keyof Providers,
-		info: ProviderInfo,
-		argResolvers: (() => any)[],
+		const resolver = this.#resolver(key);
+		if ("then" in resolver) {
+			return resolver.then((value) =>
+				value(),
+			) as DependencyResolverReturn<Invariants, Providers, K>;
+		} else {
+			return resolver();
+		}
+	}
+
+	#resolverFromParts<const Key extends keyof Providers>(
+		key: Key,
+		info: Providers[Key],
+		rawDependencyResolvers: (() => any)[],
 	) {
+		if (!info) return;
+
 		const construct: () => any =
 			info.provider[PROVIDER_KIND] === FactoryProvider
 				? () =>
 						(info.provider as TaggedFactory)(
-							...argResolvers.map((r) => r()),
+							...rawDependencyResolvers.map((r) => r()),
 						)
 				: () =>
 						new (info.provider as TaggedConstructor)(
-							...argResolvers.map((r) => r()),
+							...rawDependencyResolvers.map((r) => r()),
 						);
 
 		const resolver =
@@ -196,39 +215,52 @@ export class DependencyContainerImpl<
 		return resolver;
 	}
 
-	private resolver<const Key extends keyof Providers>(
+	#resolver<const Key extends keyof Providers>(
 		key: Key,
 	):
 		| Promise<() => DependencyResolverReturn<Invariants, Providers, Key>>
 		| (() => DependencyResolverReturn<Invariants, Providers, Key>) {
 		const cached = this.#resolvers[key];
-		if (cached) return cached() as any;
+		if (cached) return cached as any;
 
 		const info: ProviderInfo = this.#impl[key];
-		if ("importProvider" in info) {
-			return info
-				.importProvider()
-				.then((provider) => {
-					info.provider = provider;
-					const deps = provider[INJECTED_KEYS].map(
-						(key: PropertyKey) => this.resolver(key),
-					);
-					return Promise.all(deps);
-				})
-				.then((resolvers) => {
-					return this.resolverFromParts(key, info, resolvers)();
-				});
-		} else {
-			const resolvers = info.provider[INJECTED_KEYS].map(
-				(key: PropertyKey) => this.resolver(key),
-			);
-			if (resolvers.some((r: any) => r instanceof Promise)) {
-				return Promise.all(resolvers).then((resolvers) => {
-					return this.resolverFromParts(key, info, resolvers)();
-				});
-			} else {
-				return this.resolverFromParts(key, info, resolvers)();
-			}
+		if (info.lazy === true) {
+			info.provider().then((result) => {
+				const deps: readonly (keyof Providers)[] =
+					result[INJECTED_KEYS];
+			});
 		}
+
+		/**
+		 * CASES:
+		 * 1)
+		 */
+
+		// const info: ProviderInfo = this.#impl[key];
+		// if ("importProvider" in info) {
+		// 	return info
+		// 		.importProvider()
+		// 		.then((provider) => {
+		// 			info.provider = provider;
+		// 			const deps = provider[INJECTED_KEYS].map(
+		// 				(key: PropertyKey) => this.#resolver(key),
+		// 			);
+		// 			return Promise.all(deps);
+		// 		})
+		// 		.then((resolvers) => {
+		// 			return this.#resolverFromParts(key, info, resolvers);
+		// 		});
+		// } else {
+		// 	const resolvers = info.provider[INJECTED_KEYS].map(
+		// 		(key: PropertyKey) => this.#resolver(key),
+		// 	);
+		// 	if (resolvers.some((r: any) => r instanceof Promise)) {
+		// 		return Promise.all(resolvers).then((resolvers) => {
+		// 			return this.#resolverFromParts(key, info, resolvers);
+		// 		});
+		// 	} else {
+		// 		return this.#resolverFromParts(key, info, resolvers);
+		// 	}
+		// }
 	}
 }

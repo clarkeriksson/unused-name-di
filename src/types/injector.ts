@@ -6,7 +6,7 @@ import {
 	Provider,
 	TaggedAsyncConstructor,
 	TaggedAsyncFactory,
-	TaggedProvider,
+	ProviderRegistration,
 	TaggedSyncConstructor,
 	TaggedSyncFactory,
 } from "./provider";
