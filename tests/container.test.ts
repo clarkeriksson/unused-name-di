@@ -30,9 +30,9 @@ const di = context.container((builder) => {
 		.ctor("VideoService", VideoService, "transient")
 		.ctor("ImageService", ImageService, "scoped")
 		.ctor("ChatService", ChatService, "scoped")
-		.factory("NameService", NameServiceFactory, "transient")
+		.asyncFactory("NameService", NameServiceFactory, "transient")
 		.ctor("FileService0", FileService0, "transient")
-		.lazyCtor("FileService1", async () => FileService1, "singleton");
+		.lazyAsyncCtor("FileService1", async () => FileService1, "singleton");
 });
 
 const dateService = di.resolve("DateService");
