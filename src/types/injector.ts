@@ -6,7 +6,8 @@ import {
 	KeysFromTypes,
 	Provider,
 	ProviderArgs,
-	TaggedProvider,
+	TaggedConstructor,
+	TaggedFactory,
 } from "./provider";
 import {
 	ReturnKind,
@@ -52,7 +53,7 @@ export const injector = <const Invariants extends KeyTypeInvariants>() => ({
 		...args: [] extends InjectedKeys
 			? [injected?: InjectedKeys]
 			: [injected: InjectedKeys]
-	): TaggedProvider<Invariants, TargetConstructor, InjectedKeys> =>
+	): TaggedConstructor<Invariants, TargetConstructor, InjectedKeys> =>
 		tag<Invariants, TargetConstructor, InjectedKeys>(
 			provider,
 			args[0] as InjectedKeys,
@@ -69,7 +70,7 @@ export const injector = <const Invariants extends KeyTypeInvariants>() => ({
 		...args: [] extends InjectedKeys
 			? [injected?: InjectedKeys]
 			: [injected: InjectedKeys]
-	): TaggedProvider<Invariants, TargetFactory, InjectedKeys> =>
+	): TaggedFactory<Invariants, TargetFactory, InjectedKeys> =>
 		tag<Invariants, TargetFactory, InjectedKeys>(
 			provider,
 			args[0] as InjectedKeys,

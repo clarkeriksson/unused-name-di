@@ -22,7 +22,7 @@ import {
 	Provider,
 	ProviderInfo,
 	RequiresAsyncResolver,
-	TaggedProvider,
+	TaggedConstructor,
 } from "./provider";
 
 /**
@@ -50,7 +50,7 @@ export type ProviderRegistrations<Invariants extends KeyTypeInvariants> = {
 	[Key in keyof Invariants]?: ProviderInfo<
 		Invariants,
 		Key,
-		TaggedProvider,
+		TaggedConstructor,
 		DependencyScope
 	>;
 };
@@ -61,7 +61,7 @@ export interface DependencyContainerBuilder<
 > {
 	ctor<
 		const Key extends keyof Invariants,
-		const TargetConstructor extends TaggedProvider<
+		const TargetConstructor extends TaggedConstructor<
 			Invariants,
 			Constructor<Invariants[Key]>,
 			any
@@ -84,7 +84,7 @@ export interface DependencyContainerBuilder<
 	>;
 	asyncCtor<
 		const Key extends keyof Invariants,
-		const TargetConstructor extends TaggedProvider<
+		const TargetConstructor extends TaggedConstructor<
 			Invariants,
 			Constructor<Promise<Invariants[Key]>>,
 			any
@@ -107,7 +107,7 @@ export interface DependencyContainerBuilder<
 	>;
 	lazyCtor<
 		const Key extends keyof Invariants,
-		const TargetConstructor extends TaggedProvider<
+		const TargetConstructor extends TaggedConstructor<
 			Invariants,
 			Constructor<
 				Invariants[Key] extends Promise<infer Service>
@@ -135,7 +135,7 @@ export interface DependencyContainerBuilder<
 	>;
 	lazyAsyncCtor<
 		const Key extends keyof Invariants,
-		const TargetConstructor extends TaggedProvider<
+		const TargetConstructor extends TaggedConstructor<
 			Invariants,
 			Constructor<Invariants[Key] | Promise<Invariants[Key]>>,
 			any
@@ -158,7 +158,7 @@ export interface DependencyContainerBuilder<
 	>;
 	factory<
 		const Key extends keyof Invariants,
-		const TargetFactory extends TaggedProvider<
+		const TargetFactory extends TaggedConstructor<
 			Invariants,
 			Factory<Invariants[Key]>,
 			any
@@ -181,7 +181,7 @@ export interface DependencyContainerBuilder<
 	>;
 	asyncFactory<
 		const Key extends keyof Invariants,
-		const TargetFactory extends TaggedProvider<
+		const TargetFactory extends TaggedConstructor<
 			Invariants,
 			Factory<Promise<Invariants[Key]>, readonly any[]>,
 			any
@@ -204,7 +204,7 @@ export interface DependencyContainerBuilder<
 	>;
 	lazyFactory<
 		const Key extends keyof Invariants,
-		const TargetFactory extends TaggedProvider<
+		const TargetFactory extends TaggedConstructor<
 			Invariants,
 			Factory<
 				Invariants[Key] extends Promise<infer Service>
@@ -232,7 +232,7 @@ export interface DependencyContainerBuilder<
 	>;
 	lazyAsyncFactory<
 		const Key extends keyof Invariants,
-		const TargetFactory extends TaggedProvider<
+		const TargetFactory extends TaggedConstructor<
 			Invariants,
 			Factory<Invariants[Key] | Promise<Invariants[Key]>>,
 			any
