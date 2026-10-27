@@ -10,19 +10,17 @@ import { KeyTypeInvariants } from "./context";
 import {
 	Constructor,
 	DependencyResolverReturn,
-	EagerAsyncConstructorInfo,
-	EagerAsyncFactoryInfo,
-	EagerSyncConstructorInfo,
-	EagerSyncFactoryInfo,
+	EagerAwaitedProviderInfo,
+	EagerSyncProviderInfo,
 	Factory,
-	LazyAsyncConstructorInfo,
-	LazyAsyncFactoryInfo,
-	LazySyncConstructorInfo,
-	LazySyncFactoryInfo,
+	LazyAwaitedProviderInfo,
+	LazySyncProviderInfo,
 	Provider,
 	ProviderInfo,
 	RequiresAsyncResolver,
+	Resolvers,
 	TaggedConstructor,
+	TaggedProvider,
 } from "./provider";
 
 /**
@@ -59,57 +57,57 @@ export interface DependencyContainerBuilder<
 	Invariants extends KeyTypeInvariants,
 	Providers extends ProviderRegistrations<Invariants>,
 > {
-	ctor<
+	add<
 		const Key extends keyof Invariants,
-		const TargetConstructor extends TaggedConstructor<
+		const TargetProvider extends TaggedProvider<
 			Invariants,
-			Constructor<Invariants[Key]>,
+			Provider<Invariants[Key]>,
 			any
 		>,
 		const Scope extends DependencyScope,
 	>(
 		key: Key,
-		provider: TargetConstructor,
+		provider: TargetProvider,
 		scope: Scope,
 	): DependencyContainerBuilder<
 		Invariants,
 		Providers & {
-			[K in Key]: EagerSyncConstructorInfo<
+			[K in Key]: EagerSyncProviderInfo<
 				Invariants,
 				Key,
-				TargetConstructor,
+				TargetProvider,
 				Scope
 			>;
 		}
 	>;
-	asyncCtor<
+	addAsync<
 		const Key extends keyof Invariants,
-		const TargetConstructor extends TaggedConstructor<
+		const TargetProvider extends TaggedProvider<
 			Invariants,
-			Constructor<Promise<Invariants[Key]>>,
+			Provider<Promise<Invariants[Key]>>,
 			any
 		>,
 		const Scope extends DependencyScope,
 	>(
 		key: Key,
-		provider: TargetConstructor,
+		provider: TargetProvider,
 		scope: Scope,
 	): DependencyContainerBuilder<
 		Invariants,
 		Providers & {
-			[K in Key]: EagerAsyncConstructorInfo<
+			[K in Key]: EagerAwaitedProviderInfo<
 				Invariants,
 				Key,
-				TargetConstructor,
+				TargetProvider,
 				Scope
 			>;
 		}
 	>;
-	lazyCtor<
+	addLazy<
 		const Key extends keyof Invariants,
-		const TargetConstructor extends TaggedConstructor<
+		const TargetProvider extends TaggedProvider<
 			Invariants,
-			Constructor<
+			Provider<
 				Invariants[Key] extends Promise<infer Service>
 					? Service
 					: never,
@@ -120,135 +118,38 @@ export interface DependencyContainerBuilder<
 		const Scope extends DependencyScope,
 	>(
 		key: Key,
-		provider: () => Promise<TargetConstructor>,
+		provider: () => Promise<TargetProvider>,
 		scope: Scope,
 	): DependencyContainerBuilder<
 		Invariants,
 		Providers & {
-			[K in Key]: LazySyncConstructorInfo<
+			[K in Key]: LazySyncProviderInfo<
 				Invariants,
 				Key,
-				TargetConstructor,
+				TargetProvider,
 				Scope
 			>;
 		}
 	>;
-	lazyAsyncCtor<
+	addLazyAsync<
 		const Key extends keyof Invariants,
-		const TargetConstructor extends TaggedConstructor<
+		const TargetProvider extends TaggedProvider<
 			Invariants,
-			Constructor<Invariants[Key] | Promise<Invariants[Key]>>,
+			Provider<Invariants[Key] | Promise<Invariants[Key]>>,
 			any
 		>,
 		const Scope extends DependencyScope,
 	>(
 		key: Key,
-		provider: () => Promise<TargetConstructor>,
+		provider: () => Promise<TargetProvider>,
 		scope: Scope,
 	): DependencyContainerBuilder<
 		Invariants,
 		Providers & {
-			[K in Key]: LazyAsyncConstructorInfo<
+			[K in Key]: LazyAwaitedProviderInfo<
 				Invariants,
 				Key,
-				TargetConstructor,
-				Scope
-			>;
-		}
-	>;
-	factory<
-		const Key extends keyof Invariants,
-		const TargetFactory extends TaggedConstructor<
-			Invariants,
-			Factory<Invariants[Key]>,
-			any
-		>,
-		const Scope extends DependencyScope,
-	>(
-		key: Key,
-		provider: TargetFactory,
-		scope: Scope,
-	): DependencyContainerBuilder<
-		Invariants,
-		Providers & {
-			[K in Key]: EagerSyncFactoryInfo<
-				Invariants,
-				Key,
-				TargetFactory,
-				Scope
-			>;
-		}
-	>;
-	asyncFactory<
-		const Key extends keyof Invariants,
-		const TargetFactory extends TaggedConstructor<
-			Invariants,
-			Factory<Promise<Invariants[Key]>, readonly any[]>,
-			any
-		>,
-		const Scope extends DependencyScope,
-	>(
-		key: Key,
-		provider: TargetFactory,
-		scope: Scope,
-	): DependencyContainerBuilder<
-		Invariants,
-		Providers & {
-			[K in Key]: EagerAsyncFactoryInfo<
-				Invariants,
-				Key,
-				TargetFactory,
-				Scope
-			>;
-		}
-	>;
-	lazyFactory<
-		const Key extends keyof Invariants,
-		const TargetFactory extends TaggedConstructor<
-			Invariants,
-			Factory<
-				Invariants[Key] extends Promise<infer Service>
-					? Service
-					: never,
-				readonly any[]
-			>,
-			any
-		>,
-		const Scope extends DependencyScope,
-	>(
-		key: Key,
-		provider: () => Promise<TargetFactory>,
-		scope: Scope,
-	): DependencyContainerBuilder<
-		Invariants,
-		Providers & {
-			[K in Key]: LazySyncFactoryInfo<
-				Invariants,
-				Key,
-				TargetFactory,
-				Scope
-			>;
-		}
-	>;
-	lazyAsyncFactory<
-		const Key extends keyof Invariants,
-		const TargetFactory extends TaggedConstructor<
-			Invariants,
-			Factory<Invariants[Key] | Promise<Invariants[Key]>>,
-			any
-		>,
-		const Scope extends DependencyScope,
-	>(
-		key: Key,
-		provider: () => Promise<TargetFactory>,
-		scope: Scope,
-	): DependencyContainerBuilder<
-		Invariants,
-		Providers & {
-			[K in Key]: LazyAsyncFactoryInfo<
-				Invariants,
-				Key,
-				TargetFactory,
+				TargetProvider,
 				Scope
 			>;
 		}
@@ -270,123 +171,45 @@ export interface DependencyContainer<
 	scope(): DependencyContainer<Invariants, Providers>;
 }
 
-// export class DependencyContainerImpl<
-// 	Invariants extends KeyTypeInvariants,
-// 	Providers extends ProviderRegistrations<Invariants> = {},
-// >
-// 	implements
-// 		DependencyContainerBuilder<Invariants, Providers>,
-// 		DependencyContainer<Invariants, Providers>
-// {
-// 	readonly #impl: Record<keyof Providers, ProviderInfo> = {} as Record<
-// 		keyof Providers,
-// 		ProviderInfo
-// 	>;
-// 	readonly #resolvers: Record<keyof Providers, () => any> = {} as Record<
-// 		keyof Providers,
-// 		() => any
-// 	>;
+export class DependencyContainerImpl<
+	Invariants extends KeyTypeInvariants,
+	Providers extends ProviderRegistrations<Invariants> = {},
+>
+	implements
+		DependencyContainer<Invariants, Providers>,
+		DependencyContainerBuilder<Invariants, Providers>
+{
+	readonly #impl: Providers = {} as Providers;
+	readonly #resolvers: Partial<Resolvers<Invariants, Providers>> = {};
 
-// 	public resolve<const K extends keyof Providers>(
-// 		key: K,
-// 	): DependencyResolverReturn<Invariants, Providers, K> {
-// 		const cached = this.#resolvers[key];
-// 		if (cached)
-// 			return cached() as DependencyResolverReturn<
-// 				Invariants,
-// 				Providers,
-// 				K
-// 			>;
+	constructor(
+		impl: Providers,
+		resolvers?: {
+			[K in keyof Invariants]: () => DependencyResolverReturn<
+				Invariants,
+				Providers,
+				K
+			>;
+		},
+	) {
+		this.#impl = impl;
+		this.#resolvers = resolvers ?? this.#resolvers;
+	}
 
-// 		const resolver = this.#resolver(key);
-// 		if ("then" in resolver) {
-// 			return resolver.then((value) =>
-// 				value(),
-// 			) as DependencyResolverReturn<Invariants, Providers, K>;
-// 		} else {
-// 			return resolver();
-// 		}
-// 	}
+	resolve<const Key extends keyof Providers>(
+		key: Key,
+	): DependencyResolverReturn<Invariants, Providers, Key> {
+		return null as any;
+	}
 
-// 	#resolverFromParts<const Key extends keyof Providers>(
-// 		key: Key,
-// 		info: Providers[Key],
-// 		rawDependencyResolvers: (() => any)[],
-// 	) {
-// 		if (!info) return;
+	#resolver<const Key extends keyof Providers>(key: Key): any {
+		const cached = this.#resolvers[key];
+		if (cached) return cached;
 
-// 		const construct: () => any =
-// 			info.provider[PROVIDER_KIND] === FactoryProvider
-// 				? () =>
-// 						(info.provider as TaggedFactory)(
-// 							...rawDependencyResolvers.map((r) => r()),
-// 						)
-// 				: () =>
-// 						new (info.provider as TaggedConstructor)(
-// 							...rawDependencyResolvers.map((r) => r()),
-// 						);
-
-// 		const resolver =
-// 			info.scope === "transient"
-// 				? construct()
-// 				: (() => {
-// 						let instance: any;
-// 						return () => {
-// 							instance ??= construct();
-// 							return instance;
-// 						};
-// 					})();
-
-// 		this.#resolvers[key] = resolver;
-// 		return resolver;
-// 	}
-
-// 	#resolver<const Key extends keyof Providers>(
-// 		key: Key,
-// 	):
-// 		| Promise<() => DependencyResolverReturn<Invariants, Providers, Key>>
-// 		| (() => DependencyResolverReturn<Invariants, Providers, Key>) {
-// 		const cached = this.#resolvers[key];
-// 		if (cached) return cached as any;
-
-// 		const info: ProviderInfo = this.#impl[key];
-// 		if (info.lazy === true) {
-// 			info.provider().then((result) => {
-// 				const deps: readonly (keyof Providers)[] =
-// 					result[INJECTED_KEYS];
-// 			});
-// 		}
-
-// 		/**
-// 		 * CASES:
-// 		 * 1)
-// 		 */
-
-// 		// const info: ProviderInfo = this.#impl[key];
-// 		// if ("importProvider" in info) {
-// 		// 	return info
-// 		// 		.importProvider()
-// 		// 		.then((provider) => {
-// 		// 			info.provider = provider;
-// 		// 			const deps = provider[INJECTED_KEYS].map(
-// 		// 				(key: PropertyKey) => this.#resolver(key),
-// 		// 			);
-// 		// 			return Promise.all(deps);
-// 		// 		})
-// 		// 		.then((resolvers) => {
-// 		// 			return this.#resolverFromParts(key, info, resolvers);
-// 		// 		});
-// 		// } else {
-// 		// 	const resolvers = info.provider[INJECTED_KEYS].map(
-// 		// 		(key: PropertyKey) => this.#resolver(key),
-// 		// 	);
-// 		// 	if (resolvers.some((r: any) => r instanceof Promise)) {
-// 		// 		return Promise.all(resolvers).then((resolvers) => {
-// 		// 			return this.#resolverFromParts(key, info, resolvers);
-// 		// 		});
-// 		// 	} else {
-// 		// 		return this.#resolverFromParts(key, info, resolvers);
-// 		// 	}
-// 		// }
-// 	}
-// }
+		/**
+		 * Will be awaited:
+		 * - If awaited directly
+		 * - If using an awaited dependency descendant
+		 */
+	}
+}

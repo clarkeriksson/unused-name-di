@@ -25,14 +25,14 @@ const info = {
 
 const di = context.container((builder) => {
 	return builder
-		.ctor("DateService", DateService, "transient")
-		.factory("PixelWidth", PixelWidth, "singleton")
-		.ctor("VideoService", VideoService, "transient")
-		.ctor("ImageService", ImageService, "scoped")
-		.ctor("ChatService", ChatService, "scoped")
-		.asyncFactory("NameService", NameServiceFactory, "transient")
-		.ctor("FileService0", FileService0, "transient")
-		.lazyAsyncCtor("FileService1", async () => FileService1, "singleton");
+		.add("DateService", DateService, "transient")
+		.add("PixelWidth", PixelWidth, "singleton")
+		.add("VideoService", VideoService, "transient")
+		.add("ImageService", ImageService, "scoped")
+		.add("ChatService", ChatService, "scoped")
+		.addAsync("NameService", NameServiceFactory, "transient")
+		.add("FileService0", FileService0, "transient")
+		.addLazyAsync("FileService1", async () => FileService1, "singleton");
 });
 
 const dateService = di.resolve("DateService");
