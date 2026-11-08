@@ -1,4 +1,4 @@
-import { BroadenPrimitiveConst, KeyTypeInvariants } from "./context";
+import { KeyTypeInvariants } from "./global";
 import {
 	Constructor,
 	ConstructorArgs,
@@ -9,17 +9,7 @@ import {
 	TaggedConstructor,
 	TaggedFactory,
 } from "./provider";
-import {
-	ReturnKind,
-	INJECTED_KEYS,
-	PROVIDER_KIND,
-	ProviderKind,
-	RETURN_KIND,
-	SyncReturn,
-	AsyncReturn,
-	ConstructorProvider,
-	FactoryProvider,
-} from "./const";
+import { INJECTED_KEYS, PROVIDER_KIND, ProviderKind } from "./const";
 
 const tag = <
 	const Invariants extends KeyTypeInvariants,
@@ -27,18 +17,18 @@ const tag = <
 	const InjectedKeys extends KeysFromTypes<
 		Invariants,
 		ProviderArgs<TargetProvider>
-	>
+	>,
 >(
 	provider: TargetProvider,
 	keys: InjectedKeys,
-	kind: ProviderKind
+	kind: ProviderKind,
 ) =>
 	Object.setPrototypeOf(
 		Object.assign((provider as any).bind(null), {
 			[INJECTED_KEYS]: keys,
 			[PROVIDER_KIND]: kind,
 		}),
-		provider
+		provider,
 	);
 
 export const injector = <const Invariants extends KeyTypeInvariants>() => ({
@@ -47,7 +37,7 @@ export const injector = <const Invariants extends KeyTypeInvariants>() => ({
 		const InjectedKeys extends KeysFromTypes<
 			Invariants,
 			ProviderArgs<TargetConstructor>
-		>
+		>,
 	>(
 		provider: TargetConstructor,
 		...args: [] extends InjectedKeys
@@ -57,14 +47,14 @@ export const injector = <const Invariants extends KeyTypeInvariants>() => ({
 		tag<Invariants, TargetConstructor, InjectedKeys>(
 			provider,
 			(args[0] ?? []) as InjectedKeys,
-			ConstructorProvider
+			"constructor",
 		),
 	factory: <
 		const TargetFactory extends Factory,
 		const InjectedKeys extends KeysFromTypes<
 			Invariants,
 			ProviderArgs<TargetFactory>
-		>
+		>,
 	>(
 		provider: TargetFactory,
 		...args: [] extends InjectedKeys
@@ -74,7 +64,7 @@ export const injector = <const Invariants extends KeyTypeInvariants>() => ({
 		tag<Invariants, TargetFactory, InjectedKeys>(
 			provider,
 			(args[0] ?? []) as InjectedKeys,
-			FactoryProvider
+			"factory",
 		),
 });
 // ({
