@@ -15,30 +15,22 @@ import { AppInvariants } from "../context";
 
 const inject = DI.injector<AppInvariants>();
 
-const di = DI.context<AppInvariants>().root((builder) => {
+const di = DI.root<AppInvariants>().child((builder) => {
 	return builder
-		.add(
-			"AppId",
-			inject.factory(() => "AnApp"),
-			"singleton"
-		)
-		.add(
-			"PixelWidth",
-			inject.factory(() => 16),
-			"singleton"
-		)
+		.add("AppId", inject.instance("AnApp"), "singleton")
+		.add("PixelWidth", inject.instance(16), "singleton")
 		.add("DateService", DateService, "transient")
 		.add(
 			"GlobalConfig",
 			inject.factory(() => GlobalConfig),
-			"singleton"
+			"singleton",
 		)
 		.add("VideoService", VideoService, "singleton")
 		.add("ImageService", ImageService, "scoped")
 		.add("FileService0", FileService0, "transient")
 		.add("FileService1", FileService1, "singleton")
 		.add("ChatService", ChatService, "transient")
-		.addAsync("NameService", NameServiceFactory, "singleton");
+		.addAwaited("NameService", NameServiceFactory, "singleton");
 });
 
 describe("benchmarking service resolution", () => {
@@ -47,7 +39,7 @@ describe("benchmarking service resolution", () => {
 		null as any,
 		null as any,
 		null as any,
-		16
+		16,
 	);
 	let sum = 0;
 	bench("transient", () => {
@@ -79,11 +71,7 @@ describe("benchmarking scope creation", () => {
 	});
 	bench("child", () => {
 		const child = di.child((builder) =>
-			builder.add(
-				"TestPrimitive",
-				inject.factory(() => Symbol()),
-				"scoped"
-			)
+			builder.add("TestPrimitive", inject.instance(Symbol()), "scoped"),
 		);
 		sum += Number(child);
 	});

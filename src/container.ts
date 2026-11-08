@@ -233,9 +233,6 @@ export class DependencyContainerImpl<
 	): () => unknown {
 		const impl = this.#impl[key]!;
 		const argKeys = impl.provider[INJECTED_KEYS] as PropertyKey[];
-		const argResolvers: (() => unknown)[] = argKeys.map(
-			(key: PropertyKey) => this.#resolver(key),
-		);
 		const kind = impl.kind;
 
 		let awaitedIndices = impl.awaitedArgs;
@@ -249,15 +246,20 @@ export class DependencyContainerImpl<
 
 		let construct: () => unknown;
 		if (awaitedIndices.length === 0) {
-			construct =
-				kind === "constructor"
-					? () => new impl.provider(...argResolvers.map((r) => r()))
-					: () => impl.provider(...argResolvers.map((r) => r()));
+			if (kind === "constructor") {
+				construct = () =>
+					new impl.provider(...argKeys.map((r) => this.resolve(r)));
+			} else {
+				construct = () =>
+					impl.provider(...argKeys.map((r) => this.resolve(r)));
+			}
 		} else {
 			construct =
 				kind === "constructor"
 					? async () => {
-							const resolving = argResolvers.map((r) => r());
+							const resolving = argKeys.map((r) =>
+								this.resolve(r),
+							);
 							const resolved = await Promise.all(
 								awaitedIndices.map((i) => resolving[i]),
 							);
@@ -267,7 +269,9 @@ export class DependencyContainerImpl<
 							return new impl.provider(...resolving);
 						}
 					: async () => {
-							const resolving = argResolvers.map((r) => r());
+							const resolving = argKeys.map((r) =>
+								this.resolve(r),
+							);
 							const resolved = await Promise.all(
 								awaitedIndices.map((i) => resolving[i]),
 							);
@@ -291,7 +295,7 @@ export class DependencyContainerImpl<
 
 	#resolver<const Key extends keyof Providers>(key: Key): any {
 		const cached = this.#resolvers[key];
-		if (cached) return cached;
+		if (cached !== undefined) return cached;
 
 		const impl = this.#impl[key]!;
 
