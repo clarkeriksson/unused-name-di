@@ -1,4 +1,4 @@
-import { Pretty } from "./global";
+import { KeysOfScope, Pretty } from "./global";
 import { INJECTED_KEYS, PROVIDER_KIND } from "./const";
 import { DependencyScope } from "./const";
 import { KeyTypeInvariants } from "./global";
@@ -29,11 +29,15 @@ export interface DependencyContainerBuilder<
 	Providers extends ProviderRegistrations<Invariants>,
 > {
 	add<
-		const Key extends keyof Invariants,
+		const Key extends KeysOfScope<
+			Invariants,
+			Providers,
+			"scoped" | "transient"
+		>,
 		const TargetProvider extends TaggedProvider<
 			Invariants,
 			Provider<Invariants[Key]>,
-			any
+			(keyof Providers)[]
 		>,
 		const Scope extends DependencyScope,
 	>(
@@ -51,12 +55,16 @@ export interface DependencyContainerBuilder<
 			>;
 		}
 	>;
-	addAsync<
-		const Key extends keyof Invariants,
+	addAwaited<
+		const Key extends KeysOfScope<
+			Invariants,
+			Providers,
+			"scoped" | "transient"
+		>,
 		const TargetProvider extends TaggedProvider<
 			Invariants,
 			Provider<Promise<Invariants[Key]>>,
-			any
+			(keyof Providers)[]
 		>,
 		const Scope extends DependencyScope,
 	>(
@@ -75,14 +83,18 @@ export interface DependencyContainerBuilder<
 		}
 	>;
 	addLazy<
-		const Key extends keyof Invariants,
+		const Key extends KeysOfScope<
+			Invariants,
+			Providers,
+			"scoped" | "transient"
+		>,
 		const TargetProvider extends TaggedProvider<
 			Invariants,
 			Provider<
 				Invariants[Key] extends Promise<infer Service>
 					? Service
 					: never,
-				readonly any[]
+				(keyof Providers)[]
 			>,
 			any
 		>,
@@ -102,12 +114,16 @@ export interface DependencyContainerBuilder<
 			>;
 		}
 	>;
-	addLazyAsync<
-		const Key extends keyof Invariants,
+	addLazyAwaited<
+		const Key extends KeysOfScope<
+			Invariants,
+			Providers,
+			"scoped" | "transient"
+		>,
 		const TargetProvider extends TaggedProvider<
 			Invariants,
 			Provider<Invariants[Key] | Promise<Invariants[Key]>>,
-			any
+			(keyof Providers)[]
 		>,
 		const Scope extends DependencyScope,
 	>(
@@ -299,7 +315,11 @@ export class DependencyContainerImpl<
 	}
 
 	add<
-		const Key extends keyof Invariants,
+		const Key extends KeysOfScope<
+			Invariants,
+			Providers,
+			"scoped" | "transient"
+		>,
 		const TargetProvider extends TaggedProvider<
 			Invariants,
 			Provider<Invariants[Key]>,
@@ -332,8 +352,12 @@ export class DependencyContainerImpl<
 		return this as any;
 	}
 
-	addAsync<
-		const Key extends keyof Invariants,
+	addAwaited<
+		const Key extends KeysOfScope<
+			Invariants,
+			Providers,
+			"scoped" | "transient"
+		>,
 		const TargetProvider extends TaggedProvider<
 			Invariants,
 			Provider<Promise<Invariants[Key]>>,
@@ -367,7 +391,11 @@ export class DependencyContainerImpl<
 	}
 
 	addLazy<
-		const Key extends keyof Invariants,
+		const Key extends KeysOfScope<
+			Invariants,
+			Providers,
+			"scoped" | "transient"
+		>,
 		const TargetProvider extends TaggedProvider<
 			Invariants,
 			Provider<
@@ -404,8 +432,12 @@ export class DependencyContainerImpl<
 		return this as any;
 	}
 
-	addLazyAsync<
-		const Key extends keyof Invariants,
+	addLazyAwaited<
+		const Key extends KeysOfScope<
+			Invariants,
+			Providers,
+			"scoped" | "transient"
+		>,
 		const TargetProvider extends TaggedProvider<
 			Invariants,
 			Provider<Invariants[Key] | Promise<Invariants[Key]>>,

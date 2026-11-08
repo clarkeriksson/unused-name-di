@@ -1,7 +1,6 @@
 import { KeyTypeInvariants } from "./global";
 import {
 	Constructor,
-	ConstructorArgs,
 	Factory,
 	KeysFromTypes,
 	Provider,
@@ -66,59 +65,8 @@ export const injector = <const Invariants extends KeyTypeInvariants>() => ({
 			(args[0] ?? []) as InjectedKeys,
 			"factory",
 		),
+	instance: <const InstanceType>(
+		instance: InstanceType,
+	): TaggedFactory<Invariants, () => InstanceType, []> =>
+		tag<Invariants, () => InstanceType, []>(() => instance, [], "factory"),
 });
-// ({
-// 	ctor: <
-// 		const Service extends Invariants[keyof Invariants],
-// 		const Arguments extends readonly Invariants[keyof Invariants][],
-// 		const InjectedKeys extends KeysFromTypes<Invariants, Arguments>,
-// 	>(
-// 		provider: Constructor<Service, Arguments>,
-// 		...args: [] extends Arguments
-// 			? [injected?: InjectedKeys]
-// 			: [injected: InjectedKeys]
-// 	): TaggedProvider<
-// 		Invariants,
-// 		Service,
-// 		InjectedKeys
-// 	> =>
-// 		tag<
-// 			Invariants,
-// 			Service,
-// 			Arguments,
-// 			InjectedKeys,
-// 			typeof SyncReturn
-// 		>(
-// 			provider,
-// 			(args[0] ?? []) as any,
-// 			ConstructorProvider,
-// 			SyncReturn,
-// 		),
-// 	factory: <
-// 		const Service extends Invariants[keyof Invariants],
-// 		const Arguments extends readonly Invariants[keyof Invariants][],
-// 		const InjectedKeys extends KeysFromTypes<Invariants, Arguments>,
-// 	>(
-// 		provider: Factory<Service, Arguments>,
-// 		...args: [] extends Arguments
-// 			? [injected?: InjectedKeys]
-// 			: [injected: InjectedKeys]
-// 	): TaggedSyncFactory<
-// 		Invariants,
-// 		Service,
-// 		Arguments,
-// 		InjectedKeys
-// 	> =>
-// 		tag<
-// 			Invariants,
-// 			Service,
-// 			Arguments,
-// 			InjectedKeys,
-// 			typeof SyncReturn
-// 		>(
-// 			provider,
-// 			(args[0] ?? []) as any,
-// 			FactoryProvider,
-// 			SyncReturn,
-// 		),
-// }) as const;

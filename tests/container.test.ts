@@ -13,8 +13,11 @@ import {
 	NameServiceFactory,
 	PixelWidth,
 	VideoService,
+	VideoServicePromise,
 } from "./setup";
 import { AppInvariants } from "./context";
+import { KeysOfScope } from "../src/global";
+import { DependencyContainer } from "../src/container";
 
 const info = {
 	provider: null,
@@ -23,21 +26,29 @@ const info = {
 	},
 };
 
-const di = DI.context<AppInvariants>().root((builder) => {
+const di = DI.root<AppInvariants>().child((builder) => {
 	return builder
 		.add("DateService", DateService, "transient")
 		.add("PixelWidth", PixelWidth, "singleton")
-		.add("VideoService", VideoService, "transient")
+		.addAwaited("VideoService", VideoServicePromise, "transient")
 		.add("ImageService", ImageService, "scoped")
+		.addLazyAwaited("FileService1", async () => FileService1, "singleton")
 		.add("ChatService", ChatService, "scoped")
-		.addAsync("NameService", NameServiceFactory, "transient")
-		.add("FileService0", FileService0, "transient")
-		.addLazyAsync("FileService1", async () => FileService1, "singleton");
+		.addAwaited("NameService", NameServiceFactory, "transient")
+		.add("FileService0", FileService0, "transient");
 });
 
 const dateService = di.resolve("DateService");
+describe("correct sync resolution", () => {
+	it("should not be a promise", () =>
+		expect(di.resolve("DateService")).not.toBeInstanceOf(Promise));
+});
 const pixelWidthService = di.resolve("PixelWidth");
 const videoService = di.resolve("VideoService");
+describe("correct async resolution", () => {
+	it("should be a promise", () =>
+		expect(di.resolve("VideoService")).toBeInstanceOf(Promise));
+});
 const imageService = di.resolve("ImageService");
 const chatService = di.resolve("ChatService");
 const nameService = await di.resolve("NameService");
@@ -62,8 +73,8 @@ describe("Transient Service Resolution", () => {
 
 	const SERVICE = inject.ctor(SERVICEIMPL);
 
-	const root = DI.context<TestInvariants>().root((builder) =>
-		builder.add("SERVICE", SERVICE, "transient")
+	const root = DI.root<TestInvariants>().child((builder) =>
+		builder.add("SERVICE", SERVICE, "transient"),
 	);
 	const child = root.scope();
 
@@ -93,8 +104,8 @@ describe("Scoped Service Resolution", () => {
 
 	const SERVICE = inject.ctor(SERVICEIMPL);
 
-	const root = DI.context<TestInvariants>().root((builder) =>
-		builder.add("SERVICE", SERVICE, "scoped")
+	const root = DI.root<TestInvariants>().child((builder) =>
+		builder.add("SERVICE", SERVICE, "scoped"),
 	);
 	const child = root.scope();
 
@@ -124,8 +135,8 @@ describe("Singleton Service Resolution", () => {
 
 	const SERVICE = inject.ctor(SERVICEIMPL);
 
-	const root = DI.context<TestInvariants>().root((builder) =>
-		builder.add("SERVICE", SERVICE, "singleton")
+	const root = DI.root<TestInvariants>().child((builder) =>
+		builder.add("SERVICE", SERVICE, "singleton"),
 	);
 	const child = root.scope();
 
@@ -164,11 +175,11 @@ describe("Service Constructor Registration", () => {
 
 	const SERVICE = inject.ctor(SERVICEIMPL);
 
-	const container = DI.context<TestInvariants>().root((builder) =>
+	const container = DI.root<TestInvariants>().child((builder) =>
 		builder
 			.add("TRANSIENTSERVICE", SERVICE, "transient")
 			.add("SCOPEDSERVICE", SERVICE, "scoped")
-			.add("SINGLETONSERVICE", SERVICE, "singleton")
+			.add("SINGLETONSERVICE", SERVICE, "singleton"),
 	);
 
 	const transientResolved = container.resolve("TRANSIENTSERVICE");
@@ -209,10 +220,10 @@ describe("Service Factory Registration", async () => {
 	const SERVICE = inject.factory(SERVICEFACTORY);
 	const ASYNCSERVICE = inject.factory(ASYNCSERVICEFACTORY);
 
-	const container = DI.context<TestInvariants>().root((builder) => {
+	const container = DI.root<TestInvariants>().child((builder) => {
 		return builder
-			.addLazyAsync("SCOPEDSERVICE", async () => SERVICE, "scoped")
-			.addAsync("TRANSIENTSERVICE", ASYNCSERVICE, "transient")
+			.addLazyAwaited("SCOPEDSERVICE", async () => SERVICE, "scoped")
+			.addAwaited("TRANSIENTSERVICE", ASYNCSERVICE, "transient")
 			.add("SINGLETONSERVICE", SERVICE, "singleton");
 	});
 
@@ -228,27 +239,29 @@ describe("Service Factory Registration", async () => {
 		expect(singletonResolved).toHaveProperty("tag", "__FACTORY__"));
 });
 
-// test("child initializes properly", () => {
-// 	const sym = Symbol();
+test("child initializes properly", () => {
+	const sym = Symbol();
 
-// 	const newScope = di.child((builder) =>
-// 		builder.add("TestPrimitive", sym, "singleton")
-// 	);
+	const inject = DI.injector<AppInvariants>();
 
-// 	const resolvedSym = newScope.resolve("TestPrimitive");
-// 	expect(resolvedSym).toBeDefined();
-// 	expect(resolvedSym).toBe(sym);
-// });
+	const newScope = di.child((builder) =>
+		builder.add("TestPrimitive", inject.instance(sym), "singleton"),
+	);
 
-// test("non-singleton services can be overriden", () => {
-// 	const child = di.child((builder) =>
-// 		builder.ctor("ImageService", ImageServiceNew, "scoped")
-// 	);
+	const resolvedSym = newScope.resolve("TestPrimitive");
+	expect(resolvedSym).toBeDefined();
+	expect(resolvedSym).toBe(sym);
+});
 
-// 	const image = child.resolve("ImageService");
+test("non-singleton services can be overriden", async () => {
+	const child = di.child((builder) =>
+		builder.add("ImageService", ImageServiceNew, "scoped"),
+	);
 
-// 	expect(image).toBeInstanceOf(ImageServiceNew);
-// });
+	const image = await child.resolve("ImageService");
+
+	expect(image).toBeInstanceOf(ImageServiceNew);
+});
 
 // test("constructor arg inlining and fallback work for all arg counts", () => {
 // 	const createThrowerOnMiscount = (count: number) => {
@@ -363,32 +376,3 @@ describe("Service Factory Registration", async () => {
 // 	expect(container.resolve("C8")).toBeDefined();
 // 	expect(container.resolve("C9")).toBeDefined();
 // });
-
-// test("isProvider detects providers correctly", () => {
-// 	class TestProviderImpl {
-// 		private readonly brand: Symbol;
-// 		constructor() {
-// 			this.brand = Symbol();
-// 		}
-// 	}
-
-// 	const context = DI.context<{
-// 		P0: TestProviderImpl;
-// 	}>();
-
-// 	const TestProvider = context.inject(TestProviderImpl);
-
-// 	expect(context.isProvider(TestProvider)).toBe(true);
-// 	expect(context.isProvider(Date)).toBe(false);
-// });
-
-// test("readDeps throws when given an unregistered object", () => {
-// 	const context = DI.context<{
-// 		SymbolService: Symbol;
-// 	}>();
-
-// 	// @ts-expect-error
-// 	expect(() => context.readDeps(Date)).toThrow();
-// });
-
-// Reintroduce singleton override tests, but as type tests for compile-time

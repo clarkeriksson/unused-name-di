@@ -8,17 +8,9 @@ import {
 import { type KeyTypeInvariants } from "./global";
 import { injector } from "./injector";
 
-const context = <const Invariants extends KeyTypeInvariants>() => ({
-	root<const ChildProviders extends ProviderRegistrations<Invariants>>(
-		configure: (
-			builder: DependencyContainerBuilder<Invariants, {}>,
-		) => DependencyContainerBuilder<Invariants, ChildProviders>,
-	): DependencyContainer<Invariants, Pretty<ChildProviders>> {
-		const container = new DependencyContainerImpl({});
-		return configure(
-			container as DependencyContainerBuilder<Invariants, ChildProviders>,
-		).build();
-	},
-});
+const root = <
+	const Invariants extends KeyTypeInvariants,
+>(): DependencyContainer<Invariants, {}> =>
+	new DependencyContainerImpl<Invariants, {}>({});
 
-export { context, injector };
+export { root, injector };

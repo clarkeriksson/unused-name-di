@@ -162,3 +162,15 @@ export const ImageServiceNew = inject.ctor(ImageServiceNewImpl, [
 	"PixelWidth",
 	"VideoService",
 ]);
+
+export async function VideoServicePromiseFactory(
+	date: DateService,
+): Promise<VideoService> {
+	return {
+		date,
+	};
+}
+
+export const VideoServicePromise = inject.factory(VideoServicePromiseFactory, [
+	"DateService",
+]);
