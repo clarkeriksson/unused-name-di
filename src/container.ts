@@ -228,6 +228,15 @@ export class DependencyContainerImpl<
 		return this.child((builder) => builder);
 	}
 
+	#stable(key: PropertyKey): () => unknown {
+		const cached = (this.#resolvers as any)[key];
+		if (cached !== undefined) return cached;
+		let inner: (() => unknown) | undefined;
+		const stub = () => (inner ??= this.#createResolver(key as any))();
+		(this.#resolvers as any)[key] = stub;
+		return stub;
+	}
+
 	#createResolver<const Key extends keyof Providers>(
 		key: Key,
 	): () => unknown {
@@ -246,9 +255,16 @@ export class DependencyContainerImpl<
 
 		let construct: () => unknown;
 		if (awaitedIndices.length === 0) {
+			const len = argKeys.length;
+			const deps = argKeys.map((k) => this.#stable(k));
 			if (kind === "constructor") {
-				construct = () =>
-					new impl.provider(...argKeys.map((r) => this.resolve(r)));
+				construct = () => {
+					const args = new Array(len);
+					for (let i = 0; i < len; i++) {
+						args[i] = deps[i]();
+					}
+					return new impl.provider(...args);
+				};
 			} else {
 				construct = () =>
 					impl.provider(...argKeys.map((r) => this.resolve(r)));
