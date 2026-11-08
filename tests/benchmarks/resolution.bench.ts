@@ -1,5 +1,5 @@
 import { bench, describe } from "vitest";
-import { context } from "../context";
+import * as DI from "../../src/index";
 import {
 	ChatService,
 	DateService,
@@ -11,19 +11,34 @@ import {
 	NameServiceFactory,
 	VideoService,
 } from "../setup";
+import { AppInvariants } from "../context";
 
-const di = context.child((builder) => {
+const inject = DI.injector<AppInvariants>();
+
+const di = DI.context<AppInvariants>().root((builder) => {
 	return builder
-		.instance("AppId", "AnApp", "singleton")
-		.instance("PixelWidth", 16, "singleton")
-		.ctor("DateService", DateService, "transient")
-		.instance("GlobalConfig", GlobalConfig, "singleton")
-		.ctor("VideoService", VideoService, "singleton")
-		.ctor("ImageService", ImageService, "scoped")
-		.ctor("FileService0", FileService0, "transient")
-		.ctor("FileService1", FileService1, "singleton")
-		.ctor("ChatService", ChatService, "transient")
-		.factory("NameService", NameServiceFactory, "singleton");
+		.add(
+			"AppId",
+			inject.factory(() => "AnApp"),
+			"singleton"
+		)
+		.add(
+			"PixelWidth",
+			inject.factory(() => 16),
+			"singleton"
+		)
+		.add("DateService", DateService, "transient")
+		.add(
+			"GlobalConfig",
+			inject.factory(() => GlobalConfig),
+			"singleton"
+		)
+		.add("VideoService", VideoService, "singleton")
+		.add("ImageService", ImageService, "scoped")
+		.add("FileService0", FileService0, "transient")
+		.add("FileService1", FileService1, "singleton")
+		.add("ChatService", ChatService, "transient")
+		.addAsync("NameService", NameServiceFactory, "singleton");
 });
 
 describe("benchmarking service resolution", () => {
@@ -64,7 +79,11 @@ describe("benchmarking scope creation", () => {
 	});
 	bench("child", () => {
 		const child = di.child((builder) =>
-			builder.instance("TestPrimitive", Symbol(), "scoped")
+			builder.add(
+				"TestPrimitive",
+				inject.factory(() => Symbol()),
+				"scoped"
+			)
 		);
 		sum += Number(child);
 	});

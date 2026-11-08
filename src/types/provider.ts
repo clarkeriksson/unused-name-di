@@ -15,12 +15,14 @@ import { BroadenPrimitiveConst, KeyTypeInvariants } from "./context";
 
 export type Constructor<
 	T = any,
-	A extends readonly any[] = readonly any[],
+	A extends readonly any[] = readonly any[]
 > = new (...args: A) => T;
-export type ConstructorArgs<T> =
-	T extends Constructor<any, infer A> ? A : never;
-export type ConstructorReturn<T> =
-	T extends Constructor<infer R, any> ? R : never;
+export type ConstructorArgs<T> = T extends Constructor<any, infer A>
+	? A
+	: never;
+export type ConstructorReturn<T> = T extends Constructor<infer R, any>
+	? R
+	: never;
 
 export type Factory<T = any, A extends readonly any[] = readonly any[]> = (
 	...args: A
@@ -36,20 +38,20 @@ export type ProviderReturn<T> = T extends Provider<infer R, any> ? R : never;
 
 export type KeysFromTypes<
 	Invariants extends KeyTypeInvariants,
-	Arguments extends readonly Invariants[keyof Invariants][],
+	Arguments extends readonly Invariants[keyof Invariants][]
 > = {
 	[K in keyof Arguments]: {
 		[P in keyof Invariants]: Arguments[K] extends Invariants[P]
 			? P
 			: Arguments[K] extends Promise<Invariants[P]>
-				? P
-				: never;
+			? P
+			: never;
 	}[keyof Invariants];
 };
 
 type ProviderTag<
 	InjectedKeys extends KeysFromTypes<KeyTypeInvariants, readonly unknown[]>,
-	Kind extends ProviderKind,
+	Kind extends ProviderKind
 > = {
 	readonly [INJECTED_KEYS]: InjectedKeys;
 	readonly [PROVIDER_KIND]: Kind;
@@ -61,7 +63,7 @@ export type TaggedConstructor<
 	InjectedKeys extends KeysFromTypes<
 		Invariants,
 		ProviderArgs<TargetProvider>
-	> = any,
+	> = any
 > = TargetProvider & ProviderTag<InjectedKeys, typeof ConstructorProvider>;
 
 export type TaggedFactory<
@@ -70,7 +72,7 @@ export type TaggedFactory<
 	InjectedKeys extends KeysFromTypes<
 		Invariants,
 		ProviderArgs<TargetProvider>
-	> = any,
+	> = any
 > = TargetProvider & ProviderTag<InjectedKeys, typeof FactoryProvider>;
 
 export type TaggedProvider<
@@ -79,21 +81,22 @@ export type TaggedProvider<
 	InjectedKeys extends KeysFromTypes<
 		Invariants,
 		ProviderArgs<TargetProvider>
-	> = any,
+	> = any
 > = TargetProvider extends Constructor
 	? TaggedConstructor<
 			Invariants,
 			TargetProvider extends Constructor ? TargetProvider : never,
 			InjectedKeys
-		>
+	  >
 	: TaggedFactory<
 			Invariants,
 			TargetProvider extends Factory ? TargetProvider : never,
 			InjectedKeys
-		>;
+	  >;
 
-export type TaggedProviderInjectedKeys<T> =
-	T extends ProviderTag<infer A, any> ? A : never;
+export type TaggedProviderInjectedKeys<T> = T extends ProviderTag<infer A, any>
+	? A
+	: never;
 
 export type EagerSyncProviderInfo<
 	Invariants extends KeyTypeInvariants = any,
@@ -103,48 +106,15 @@ export type EagerSyncProviderInfo<
 		Provider<Invariants[Key]>,
 		any
 	> = any,
-	Scope extends DependencyScope = any,
+	Scope extends DependencyScope = any
 > = {
-	get provider(): Registration;
+	provider: Registration;
+	awaitedArgs: number[] | null;
 	readonly scope: Scope;
 	readonly lazy: false;
 	readonly awaited: false;
-	readonly kind: ProviderKind;
+	kind: ProviderKind;
 };
-
-// export type EagerSyncConstructorInfo<
-// 	Invariants extends KeyTypeInvariants = any,
-// 	Key extends keyof Invariants = any,
-// 	Registration extends TaggedConstructor<
-// 		Invariants,
-// 		Constructor<Invariants[Key]>,
-// 		any
-// 	> = any,
-// 	Scope extends DependencyScope = any,
-// > = {
-// 	provider(): Registration;
-// 	readonly scope: Scope;
-// 	readonly lazy: false;
-// 	readonly async: false;
-// 	readonly kind: typeof ConstructorProvider;
-// };
-
-// export type EagerSyncFactoryInfo<
-// 	Invariants extends KeyTypeInvariants = any,
-// 	Key extends keyof Invariants = any,
-// 	Registration extends TaggedFactory<
-// 		Invariants,
-// 		Factory<Invariants[Key]>,
-// 		any
-// 	> = any,
-// 	Scope extends DependencyScope = any,
-// > = {
-// 	provider(): Registration;
-// 	readonly scope: Scope;
-// 	readonly lazy: false;
-// 	readonly async: false;
-// 	readonly kind: typeof FactoryProvider;
-// };
 
 export type EagerAwaitedProviderInfo<
 	Invariants extends KeyTypeInvariants = any,
@@ -154,48 +124,15 @@ export type EagerAwaitedProviderInfo<
 		Provider<Promise<Invariants[Key]>>,
 		any
 	> = any,
-	Scope extends DependencyScope = any,
+	Scope extends DependencyScope = any
 > = {
-	get provider(): Registration;
+	provider: Registration;
+	awaitedArgs: number[] | null;
 	readonly scope: Scope;
 	readonly lazy: false;
 	readonly awaited: true;
-	readonly kind: ProviderKind;
+	kind: ProviderKind;
 };
-
-// export type EagerAsyncConstructorInfo<
-// 	Invariants extends KeyTypeInvariants = any,
-// 	Key extends keyof Invariants = any,
-// 	Registration extends TaggedConstructor<
-// 		Invariants,
-// 		Constructor<Promise<Invariants[Key]>>,
-// 		any
-// 	> = any,
-// 	Scope extends DependencyScope = any,
-// > = {
-// 	get provider(): Registration;
-// 	readonly scope: Scope;
-// 	readonly lazy: false;
-// 	readonly async: true;
-// 	readonly kind: typeof ConstructorProvider;
-// };
-
-// export type EagerAsyncFactoryInfo<
-// 	Invariants extends KeyTypeInvariants = any,
-// 	Key extends keyof Invariants = any,
-// 	Registration extends TaggedFactory<
-// 		Invariants,
-// 		Factory<Promise<Invariants[Key]>>,
-// 		any
-// 	> = any,
-// 	Scope extends DependencyScope = any,
-// > = {
-// 	get provider(): Registration;
-// 	readonly scope: Scope;
-// 	readonly lazy: false;
-// 	readonly async: true;
-// 	readonly kind: typeof FactoryProvider;
-// };
 
 export type LazySyncProviderInfo<
 	Invariants extends KeyTypeInvariants = any,
@@ -207,53 +144,16 @@ export type LazySyncProviderInfo<
 		>,
 		any
 	> = any,
-	Scope extends DependencyScope = any,
+	Scope extends DependencyScope = any
 > = {
-	get provider(): Registration;
+	provider: Registration;
+	awaitedArgs: number[] | null;
 	importProvider(): Promise<Registration>;
 	readonly scope: Scope;
 	readonly lazy: true;
 	readonly awaited: false;
-	readonly kind: ProviderKind;
+	kind: ProviderKind;
 };
-
-// export type LazySyncConstructorInfo<
-// 	Invariants extends KeyTypeInvariants = any,
-// 	Key extends keyof Invariants = any,
-// 	Registration extends TaggedConstructor<
-// 		Invariants,
-// 		Constructor<
-// 			Invariants[Key] extends Promise<infer Service> ? Service : never
-// 		>,
-// 		any
-// 	> = any,
-// 	Scope extends DependencyScope = any,
-// > = {
-// 	get provider(): Promise<Registration>;
-// 	readonly scope: Scope;
-// 	readonly lazy: true;
-// 	readonly async: false;
-// 	readonly kind: typeof ConstructorProvider;
-// };
-
-// export type LazySyncFactoryInfo<
-// 	Invariants extends KeyTypeInvariants = any,
-// 	Key extends keyof Invariants = any,
-// 	Registration extends TaggedFactory<
-// 		Invariants,
-// 		Factory<
-// 			Invariants[Key] extends Promise<infer Service> ? Service : never
-// 		>,
-// 		any
-// 	> = any,
-// 	Scope extends DependencyScope = any,
-// > = {
-// 	get provider(): Promise<Registration>;
-// 	readonly scope: Scope;
-// 	readonly lazy: true;
-// 	readonly async: false;
-// 	readonly kind: typeof FactoryProvider;
-// };
 
 export type LazyAwaitedProviderInfo<
 	Invariants extends KeyTypeInvariants = any,
@@ -263,66 +163,22 @@ export type LazyAwaitedProviderInfo<
 		Provider<Invariants[Key] | Promise<Invariants[Key]>>,
 		any
 	> = any,
-	Scope extends DependencyScope = any,
+	Scope extends DependencyScope = any
 > = {
-	get provider(): Registration;
+	provider: Registration;
+	awaitedArgs: number[] | null;
 	importProvider(): Promise<Registration>;
 	readonly scope: Scope;
 	readonly lazy: true;
 	readonly awaited: true;
-	readonly kind: ProviderKind;
+	kind: ProviderKind;
 };
-
-// export type LazyAsyncConstructorInfo<
-// 	Invariants extends KeyTypeInvariants = any,
-// 	Key extends keyof Invariants = any,
-// 	Registration extends TaggedConstructor<
-// 		Invariants,
-// 		Constructor<Invariants[Key] | Promise<Invariants[Key]>>,
-// 		any
-// 	> = any,
-// 	Scope extends DependencyScope = any,
-// > = {
-// 	get provider(): Promise<
-// 		Constructor<
-// 			| Promise<ConstructorReturn<Registration>>
-// 			| ConstructorReturn<Registration>,
-// 			ConstructorArgs<Registration>
-// 		>
-// 	>;
-// 	readonly scope: Scope;
-// 	readonly lazy: true;
-// 	readonly async: true;
-// 	readonly kind: typeof ConstructorProvider;
-// };
-
-// export type LazyAsyncFactoryInfo<
-// 	Invariants extends KeyTypeInvariants = any,
-// 	Key extends keyof Invariants = any,
-// 	Registration extends TaggedFactory<
-// 		Invariants,
-// 		Factory<Invariants[Key] | Promise<Invariants[Key]>>,
-// 		any
-// 	> = any,
-// 	Scope extends DependencyScope = any,
-// > = {
-// 	get provider(): Promise<
-// 		Factory<
-// 			Promise<FactoryReturn<Registration>> | FactoryReturn<Registration>,
-// 			FactoryArgs<Registration>
-// 		>
-// 	>;
-// 	readonly scope: Scope;
-// 	readonly lazy: true;
-// 	readonly async: true;
-// 	readonly kind: typeof FactoryProvider;
-// };
 
 export type ProviderInfo<
 	Invariants extends KeyTypeInvariants,
 	Key extends keyof Invariants,
 	TargetProvider extends TaggedProvider,
-	Scope extends DependencyScope,
+	Scope extends DependencyScope
 > =
 	| EagerSyncProviderInfo<
 			Invariants,
@@ -390,44 +246,39 @@ export type DirectlyAwaitedService =
 export type RequiresAsyncResolver<
 	Invariants extends KeyTypeInvariants,
 	Providers extends ProviderRegistrations<Invariants>,
-	Key extends keyof Invariants,
+	Key extends keyof Invariants
 > = Providers[Key] extends DirectlyAwaitedService
 	? true
 	: Providers[Key] extends ProviderInfo<
-				Invariants,
-				Key,
-				TaggedProvider<Invariants, Provider, infer InjectedKeys>,
-				DependencyScope
-		  >
-		? {
-				[K in keyof Invariants]: K extends {
-					[I in keyof InjectedKeys]: InjectedKeys[I];
-				}[keyof InjectedKeys]
-					? RequiresAsyncResolver<
-							Invariants,
-							Providers,
-							K
-						> extends true
-						? true
-						: never
-					: never;
-			}[keyof Invariants] extends never
-			? false
-			: true
-		: false;
+			Invariants,
+			Key,
+			TaggedProvider<Invariants, Provider, infer InjectedKeys>,
+			DependencyScope
+	  >
+	? {
+			[K in keyof Invariants]: K extends {
+				[I in keyof InjectedKeys]: InjectedKeys[I];
+			}[keyof InjectedKeys]
+				? RequiresAsyncResolver<Invariants, Providers, K> extends true
+					? true
+					: never
+				: never;
+	  }[keyof Invariants] extends never
+		? false
+		: true
+	: false;
 
 export type DependencyResolverReturn<
 	Invariants extends KeyTypeInvariants,
 	Providers extends ProviderRegistrations<Invariants>,
-	Key extends keyof Invariants,
-> =
-	RequiresAsyncResolver<Invariants, Providers, Key> extends true
-		? Promise<Invariants[Key]>
-		: Invariants[Key];
+	Key extends keyof Invariants
+> = RequiresAsyncResolver<Invariants, Providers, Key> extends true
+	? Promise<Invariants[Key]>
+	: Invariants[Key];
 
 export type Resolvers<
 	Invariants extends KeyTypeInvariants,
-	Providers extends ProviderRegistrations<Invariants>,
+	Providers extends ProviderRegistrations<Invariants>
 > = {
 	[Key in keyof Providers]: () => DependencyResolverReturn<
 		Invariants,

@@ -27,18 +27,18 @@ const tag = <
 	const InjectedKeys extends KeysFromTypes<
 		Invariants,
 		ProviderArgs<TargetProvider>
-	>,
+	>
 >(
 	provider: TargetProvider,
 	keys: InjectedKeys,
-	kind: ProviderKind,
+	kind: ProviderKind
 ) =>
 	Object.setPrototypeOf(
 		Object.assign((provider as any).bind(null), {
 			[INJECTED_KEYS]: keys,
 			[PROVIDER_KIND]: kind,
 		}),
-		provider,
+		provider
 	);
 
 export const injector = <const Invariants extends KeyTypeInvariants>() => ({
@@ -47,7 +47,7 @@ export const injector = <const Invariants extends KeyTypeInvariants>() => ({
 		const InjectedKeys extends KeysFromTypes<
 			Invariants,
 			ProviderArgs<TargetConstructor>
-		>,
+		>
 	>(
 		provider: TargetConstructor,
 		...args: [] extends InjectedKeys
@@ -56,15 +56,15 @@ export const injector = <const Invariants extends KeyTypeInvariants>() => ({
 	): TaggedConstructor<Invariants, TargetConstructor, InjectedKeys> =>
 		tag<Invariants, TargetConstructor, InjectedKeys>(
 			provider,
-			args[0] as InjectedKeys,
-			ConstructorProvider,
+			(args[0] ?? []) as InjectedKeys,
+			ConstructorProvider
 		),
 	factory: <
 		const TargetFactory extends Factory,
 		const InjectedKeys extends KeysFromTypes<
 			Invariants,
 			ProviderArgs<TargetFactory>
-		>,
+		>
 	>(
 		provider: TargetFactory,
 		...args: [] extends InjectedKeys
@@ -73,8 +73,8 @@ export const injector = <const Invariants extends KeyTypeInvariants>() => ({
 	): TaggedFactory<Invariants, TargetFactory, InjectedKeys> =>
 		tag<Invariants, TargetFactory, InjectedKeys>(
 			provider,
-			args[0] as InjectedKeys,
-			ConstructorProvider,
+			(args[0] ?? []) as InjectedKeys,
+			FactoryProvider
 		),
 });
 // ({

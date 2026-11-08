@@ -22,5 +22,3 @@ export type AppInvariants = {
 	FileService1: FileService;
 	PixelWidth: number;
 };
-
-export const context = DI.context<AppInvariants>();
