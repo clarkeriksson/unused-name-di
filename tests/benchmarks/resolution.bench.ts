@@ -69,9 +69,10 @@ describe("benchmarking scope creation", () => {
 		const scope = di.scope();
 		sum += Number(scope);
 	});
+	const newSymbolService = inject.instance(Symbol());
 	bench("child", () => {
 		const child = di.child((builder) =>
-			builder.add("TestPrimitive", inject.instance(Symbol()), "scoped"),
+			builder.add("TestPrimitive", newSymbolService, "scoped"),
 		);
 		sum += Number(child);
 	});
