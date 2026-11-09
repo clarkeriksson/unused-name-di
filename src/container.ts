@@ -196,28 +196,15 @@ export class DependencyContainerImpl<
 			builder: DependencyContainerBuilder<Invariants, Providers>,
 		) => DependencyContainerBuilder<Invariants, ChildProviders>,
 	): DependencyContainer<Invariants, Pretty<ChildProviders>> {
-		const singletonResolvers = {} as any;
+		const inherited = {} as any;
 		Object.entries(this.#impl).map(([key, val]) => {
 			if (val!.scope === "singleton") {
-				const getParentResolver = this.#resolver.bind(this);
-				singletonResolvers[key] = () => {
-					const parentResolver = getParentResolver(key);
-					const resolved = parentResolver();
-					if (resolved instanceof Promise) {
-						return resolved.then((r) => {
-							singletonResolvers[key] = () => r;
-							return r;
-						});
-					} else {
-						singletonResolvers[key] = () => resolved;
-						return resolved;
-					}
-				};
+				inherited[key] = this.#resolver(key as any);
 			}
 		});
 		const builder = new DependencyContainerImpl(
 			{ ...this.#impl },
-			singletonResolvers,
+			inherited,
 		);
 		return configure(
 			builder as DependencyContainerBuilder<Invariants, Providers>,
@@ -226,15 +213,6 @@ export class DependencyContainerImpl<
 
 	scope(): DependencyContainer<Invariants, Providers> {
 		return this.child((builder) => builder);
-	}
-
-	#stable(key: PropertyKey): () => unknown {
-		const cached = (this.#resolvers as any)[key];
-		if (cached !== undefined) return cached;
-		let inner: (() => unknown) | undefined;
-		const stub = () => (inner ??= this.#createResolver(key as any))();
-		(this.#resolvers as any)[key] = stub;
-		return stub;
 	}
 
 	#createResolver<const Key extends keyof Providers>(
@@ -259,7 +237,12 @@ export class DependencyContainerImpl<
 		const awaitedLen = awaitedIndices.length;
 
 		let construct: () => unknown;
-		if (awaitedIndices.length === 0) {
+		if (len === 0) {
+			construct =
+				kind === "constructor"
+					? () => new provider()
+					: () => provider();
+		} else if (awaitedIndices.length === 0) {
 			construct =
 				kind === "constructor"
 					? () => {
@@ -307,73 +290,6 @@ export class DependencyContainerImpl<
 						return instance;
 					};
 				})();
-		// const impl = this.#impl[key]!;
-		// const argKeys = impl.provider[INJECTED_KEYS] as PropertyKey[];
-		// const kind = impl.kind;
-
-		// let awaitedIndices = impl.awaitedArgs;
-		// if (awaitedIndices === null) {
-		// 	awaitedIndices = argKeys.reduce((acc, curr, idx) => {
-		// 		if (this.#impl[curr]?.awaited) acc.push(idx);
-		// 		return acc;
-		// 	}, new Array<number>());
-		// 	impl.awaitedArgs = awaitedIndices;
-		// }
-
-		// let construct: () => unknown;
-		// if (awaitedIndices.length === 0) {
-		// 	const len = argKeys.length;
-		// 	const deps = argKeys.map((k) => this.#stable(k));
-		// 	if (kind === "constructor") {
-		// 		construct = () => {
-		// 			const args = new Array(len);
-		// 			for (let i = 0; i < len; i++) {
-		// 				args[i] = deps[i]();
-		// 			}
-		// 			return new impl.provider(...args);
-		// 		};
-		// 	} else {
-		// 		construct = () =>
-		// 			impl.provider(...argKeys.map((r) => this.resolve(r)));
-		// 	}
-		// } else {
-		// 	construct =
-		// 		kind === "constructor"
-		// 			? async () => {
-		// 					const resolving = argKeys.map((r) =>
-		// 						this.resolve(r),
-		// 					);
-		// 					const resolved = await Promise.all(
-		// 						awaitedIndices.map((i) => resolving[i]),
-		// 					);
-		// 					awaitedIndices.forEach(
-		// 						(i, j) => (resolving[i] = resolved[j]),
-		// 					);
-		// 					return new impl.provider(...resolving);
-		// 				}
-		// 			: async () => {
-		// 					const resolving = argKeys.map((r) =>
-		// 						this.resolve(r),
-		// 					);
-		// 					const resolved = await Promise.all(
-		// 						awaitedIndices.map((i) => resolving[i]),
-		// 					);
-		// 					awaitedIndices.forEach(
-		// 						(i, j) => (resolving[i] = resolved[j]),
-		// 					);
-		// 					return impl.provider(...resolving);
-		// 				};
-		// }
-
-		// return impl.scope === "transient"
-		// 	? construct
-		// 	: (() => {
-		// 			let instance: any;
-		// 			return () => {
-		// 				instance ??= construct();
-		// 				return instance;
-		// 			};
-		// 		})();
 	}
 
 	#resolver<const Key extends keyof Providers>(key: Key): any {

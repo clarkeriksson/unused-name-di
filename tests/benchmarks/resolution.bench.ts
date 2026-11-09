@@ -42,10 +42,14 @@ describe("benchmarking service resolution", () => {
 		16,
 	);
 	let sum = 0;
-	bench("transient", () => {
-		const resolved = di.resolve("ChatService");
-		sum += resolved.pxWidth;
-	});
+	bench(
+		"transient",
+		() => {
+			const resolved = di.resolve("ChatService");
+			sum += resolved.pxWidth;
+		},
+		{ warmupTime: 1000 },
+	);
 	sum = 0;
 	bench("scoped", () => {
 		const resolved = di.resolve("ImageService");
