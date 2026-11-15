@@ -15,19 +15,32 @@ import {
 	TaggedProvider,
 } from "./provider";
 
+/**
+ * Represents a record type of dependency keys to their respective {@link ProviderInfo} entries for a given
+ * {@link Invariants} type.
+ */
 export type ProviderRegistrations<Invariants extends KeyTypeInvariants> = {
 	[Key in keyof Invariants]?: ProviderInfo<
 		Invariants,
 		Key,
-		TaggedConstructor,
+		TaggedProvider,
 		DependencyScope
 	>;
 };
 
+/**
+ * Represents an object capable of building a {@link DependencyContainer} for the given {@link Invariants}.
+ */
 export interface DependencyContainerBuilder<
 	Invariants extends KeyTypeInvariants,
 	Providers extends ProviderRegistrations<Invariants>,
 > {
+	/**
+	 * Adds an {@link EagerSyncProviderInfo} entry to the final {@link DependencyContainer} {@link Providers}.
+	 * @param key The key of an unregistered singleton dependency, or any scoped/transient dependency.
+	 * @param provider The {@link TaggedProvider} to register to the associated key.
+	 * @param scope The {@link DependencyScope} to assign the registration to.
+	 */
 	add<
 		const Key extends KeysOfScope<
 			Invariants,
@@ -55,6 +68,13 @@ export interface DependencyContainerBuilder<
 			>;
 		}
 	>;
+
+	/**
+	 * Adds an {@link EagerAwaitedProviderInfo} entry to the final {@link DependencyContainer} {@link Providers}.
+	 * @param key The key of an unregistered singleton dependency, or any scoped/transient dependency.
+	 * @param provider The {@link TaggedProvider} to register to the associated key.
+	 * @param scope The {@link DependencyScope} to assign the registration to.
+	 */
 	addAwaited<
 		const Key extends KeysOfScope<
 			Invariants,
@@ -82,6 +102,13 @@ export interface DependencyContainerBuilder<
 			>;
 		}
 	>;
+
+	/**
+	 * Adds a {@link LazySyncProviderInfo} entry to the final {@link DependencyContainer} {@link Providers}.
+	 * @param key The key of an unregistered singleton dependency, or any scoped/transient dependency.
+	 * @param provider The {@link TaggedProvider} to register to the associated key.
+	 * @param scope The {@link DependencyScope} to assign the registration to.
+	 */
 	addLazy<
 		const Key extends KeysOfScope<
 			Invariants,
@@ -114,6 +141,13 @@ export interface DependencyContainerBuilder<
 			>;
 		}
 	>;
+
+	/**
+	 * Adds a {@link LazyAwaitedProviderInfo} entry to the final {@link DependencyContainer} {@link Providers}.
+	 * @param key The key of an unregistered singleton dependency, or any scoped/transient dependency.
+	 * @param provider The {@link TaggedProvider} to register to the associated key.
+	 * @param scope The {@link DependencyScope} to assign the registration to.
+	 */
 	addLazyAwaited<
 		const Key extends KeysOfScope<
 			Invariants,
@@ -142,24 +176,53 @@ export interface DependencyContainerBuilder<
 		}
 	>;
 
+	/**
+	 * Produces a {@link DependencyContainer} from the current {@link DependencyContainerBuilder} state.
+	 */
 	build(): DependencyContainer<Invariants, Pretty<Providers>>;
 }
 
+/**
+ * Represents an object capable of resolving services by key based on configuration specified in the producing
+ * {@link DependencyContainerBuilder}.
+ */
 export interface DependencyContainer<
 	Invariants extends KeyTypeInvariants,
 	Providers extends ProviderRegistrations<Invariants>,
 > {
+	/**
+	 * Resolves the service associated with the given {@link key}.
+	 *
+	 * If the service and all it's dependencies have registrations that are {@link EagerSyncProviderInfo} then this
+	 * will return the service synchronously. Otherwise, a promise will be returned that resolves to the service.
+	 *
+	 * @param key The service key.
+	 */
 	resolve<const K extends keyof Providers>(
 		key: K,
 	): DependencyResolverReturn<Invariants, Providers, K>;
+
+	/**
+	 * Creates a child {@link DependencyContainerBuilder} that has a starting configuration identical to this
+	 * {@link DependencyContainer}.
+	 * @param configure A function taking in a {@link DependencyContainerBuilder} and returning a configured
+	 * {@link DependencyContainerBuilder}.
+	 */
 	child<ChildProviders extends ProviderRegistrations<Invariants>>(
 		configure: (
 			builder: DependencyContainerBuilder<Invariants, Providers>,
 		) => DependencyContainerBuilder<Invariants, ChildProviders>,
 	): DependencyContainer<Invariants, Pretty<ChildProviders>>;
+
+	/**
+	 * Creates a child {@link DependencyContainer} with an identical configuration to this {@link DependencyContainer}.
+	 */
 	scope(): DependencyContainer<Invariants, Providers>;
 }
 
+/**
+ * The implementation of {@link DependencyContainer} and {@link DependencyContainerBuilder}.
+ */
 export class DependencyContainerImpl<
 	Invariants extends KeyTypeInvariants,
 	Providers extends ProviderRegistrations<Invariants> = {},
@@ -215,6 +278,11 @@ export class DependencyContainerImpl<
 		return this.child((builder) => builder);
 	}
 
+	/**
+	 * Creates the raw resolver function for a given service key.
+	 * @param key The service key.
+	 * @returns The resolver function.
+	 */
 	#createResolver<const Key extends keyof Providers>(
 		key: Key,
 	): () => unknown {
@@ -292,6 +360,11 @@ export class DependencyContainerImpl<
 				})();
 	}
 
+	/**
+	 * Returns a cached resolver or handles the creation of a new one and caches that for the given service key.
+	 * @param key The service key.
+	 * @returns The resolver.
+	 */
 	#resolver<const Key extends keyof Providers>(key: Key): any {
 		const cached = this.#resolvers[key];
 		if (cached !== undefined) return cached as () => unknown;

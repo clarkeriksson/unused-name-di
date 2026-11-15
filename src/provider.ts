@@ -7,27 +7,65 @@ import {
 import { ProviderRegistrations } from "./container";
 import { KeyTypeInvariants } from "./global";
 
+/**
+ * Represents a constructor that returns type {@link T} and takes in arguments of tuple type {@link A}.
+ */
 export type Constructor<
 	T = any,
 	A extends readonly any[] = readonly any[],
 > = new (...args: A) => T;
+
+/**
+ * Provides a tuple type of the arguments of a {@link Constructor}.
+ */
 export type ConstructorArgs<T> =
 	T extends Constructor<any, infer A> ? A : never;
+
+/**
+ * Provides the return type of a {@link Constructor}.
+ */
 export type ConstructorReturn<T> =
 	T extends Constructor<infer R, any> ? R : never;
 
+/**
+ * Represents a factory that returns type {@link T} and takes in arguments of tuple type {@link A}.
+ */
 export type Factory<T = any, A extends readonly any[] = readonly any[]> = (
 	...args: A
 ) => T;
+
+/**
+ * Provides a tuple type of the arguments of a {@link Factory}.
+ */
 export type FactoryArgs<T> = T extends Factory<any, infer A> ? A : never;
+
+/**
+ * Provides the return type of a {@link Factory}.
+ */
 export type FactoryReturn<T> = T extends Factory<infer R, any> ? R : never;
 
+/**
+ * Represents either a {@link Constructor} or a {@link Factory} type that returns type {@link T} and takes in arguments
+ * or tuple type {@link A}.
+ */
 export type Provider<T = any, A extends readonly any[] = readonly any[]> =
 	| Constructor<T, A>
 	| Factory<T, A>;
+
+/**
+ * Provides a tuple type of the arguments of a {@link Provider}.
+ */
 export type ProviderArgs<T> = T extends Provider<any, infer A> ? A : never;
+
+/**
+ * Provides the return type of a {@link Provider}.
+ */
 export type ProviderReturn<T> = T extends Provider<infer R, any> ? R : never;
 
+/**
+ * Provides a tuple type of service keys associated with the given {@link Arguments} tuple type of {@link Provider}
+ * arguments given a specific {@link Invariants} configuration.
+ */
 export type KeysFromTypes<
 	Invariants extends KeyTypeInvariants,
 	Arguments extends readonly Invariants[keyof Invariants][],
@@ -41,14 +79,26 @@ export type KeysFromTypes<
 	}[keyof Invariants];
 };
 
+/**
+ * Represents metadata attached to a {@link Provider} carrying around information on the kind of {@link Provider} and
+ * the services to inject as arguments.
+ */
 type ProviderTag<
-	InjectedKeys extends KeysFromTypes<KeyTypeInvariants, readonly unknown[]>,
+	Invariants extends KeyTypeInvariants,
+	TargetProvider extends Provider,
+	InjectedKeys extends KeysFromTypes<
+		Invariants,
+		ProviderArgs<TargetProvider>
+	>,
 	Kind extends ProviderKind,
 > = {
 	readonly [INJECTED_KEYS]: InjectedKeys;
 	readonly [PROVIDER_KIND]: Kind;
 };
 
+/**
+ * Represents a {@link Constructor} with a {@link ProviderTag}.
+ */
 export type TaggedConstructor<
 	Invariants extends KeyTypeInvariants = any,
 	TargetProvider extends Constructor = any,
@@ -56,8 +106,12 @@ export type TaggedConstructor<
 		Invariants,
 		ProviderArgs<TargetProvider>
 	> = any,
-> = TargetProvider & ProviderTag<InjectedKeys, "constructor">;
+> = TargetProvider &
+	ProviderTag<Invariants, TargetProvider, InjectedKeys, "constructor">;
 
+/**
+ * Represents a {@link Factory} with a {@link ProviderTag}.
+ */
 export type TaggedFactory<
 	Invariants extends KeyTypeInvariants = any,
 	TargetProvider extends Factory = any,
@@ -65,8 +119,12 @@ export type TaggedFactory<
 		Invariants,
 		ProviderArgs<TargetProvider>
 	> = any,
-> = TargetProvider & ProviderTag<InjectedKeys, "factory">;
+> = TargetProvider &
+	ProviderTag<Invariants, TargetProvider, InjectedKeys, "factory">;
 
+/**
+ * Represents a {@link Provider} with a {@link ProviderTag}.
+ */
 export type TaggedProvider<
 	Invariants extends KeyTypeInvariants = any,
 	TargetProvider extends Provider = any,
@@ -86,9 +144,16 @@ export type TaggedProvider<
 			InjectedKeys
 		>;
 
+/**
+ * Extracts the injected service key tuple type from a {@link ProviderTag}.
+ */
 export type TaggedProviderInjectedKeys<T> =
-	T extends ProviderTag<infer A, any> ? A : never;
+	T extends ProviderTag<any, any, infer A, any> ? A : never;
 
+/**
+ * Represents the registration info for an eagerly imported, synchronous return {@link TaggedProvider} being assigned
+ * to be a container service.
+ */
 export type EagerSyncProviderInfo<
 	Invariants extends KeyTypeInvariants = any,
 	Key extends keyof Invariants = any,
@@ -107,6 +172,10 @@ export type EagerSyncProviderInfo<
 	kind: ProviderKind;
 };
 
+/**
+ * Represents the registration info for an eagerly imported, asynchronous return {@link TaggedProvider} being assigned
+ * to be a container service.
+ */
 export type EagerAwaitedProviderInfo<
 	Invariants extends KeyTypeInvariants = any,
 	Key extends keyof Invariants = any,
@@ -125,6 +194,10 @@ export type EagerAwaitedProviderInfo<
 	kind: ProviderKind;
 };
 
+/**
+ * Represents the registration info for a lazily imported, synchronous return {@link TaggedProvider} being assigned
+ * to be a container service.
+ */
 export type LazySyncProviderInfo<
 	Invariants extends KeyTypeInvariants = any,
 	Key extends keyof Invariants = any,
@@ -146,6 +219,10 @@ export type LazySyncProviderInfo<
 	kind: ProviderKind;
 };
 
+/**
+ * Represents the registration info for a lazily imported, asynchronous return {@link TaggedProvider} being assigned
+ * to be a container service.
+ */
 export type LazyAwaitedProviderInfo<
 	Invariants extends KeyTypeInvariants = any,
 	Key extends keyof Invariants = any,
@@ -165,6 +242,9 @@ export type LazyAwaitedProviderInfo<
 	kind: ProviderKind;
 };
 
+/**
+ * Represents the registration info for a {@link TaggedProvider} being assigned to be a container service.
+ */
 export type ProviderInfo<
 	Invariants extends KeyTypeInvariants,
 	Key extends keyof Invariants,
@@ -223,17 +303,17 @@ export type ProviderInfo<
 			Scope
 	  >;
 
-// export type ProviderInfo<
-// 	TargetProvider extends TaggedProvider<any, any, any, any>,
-// 	Scope extends DependencyScope,
-// > =
-// 	| EagerProviderInfo<TargetProvider, Scope>
-// 	| LazyProviderInfo<TargetProvider, Scope>;
-
+/**
+ * {@link ProviderInfo} types that must be directly awaited, rather than awaited due to an awaited dependency.
+ */
 export type DirectlyAwaitedService =
 	| EagerAwaitedProviderInfo
 	| LazyAwaitedProviderInfo;
 
+/**
+ * Type returning {@link true} if the given {@link Key} type is associated with a service that must be resolved
+ * asynchronously, and {@link false} otherwise.
+ */
 export type RequiresAsyncResolver<
 	Invariants extends KeyTypeInvariants,
 	Providers extends ProviderRegistrations<Invariants>,
@@ -263,6 +343,9 @@ export type RequiresAsyncResolver<
 			: true
 		: false;
 
+/**
+ * Type of the return when resolving the given {@link Key} from the {@link Providers} configuration.
+ */
 export type DependencyResolverReturn<
 	Invariants extends KeyTypeInvariants,
 	Providers extends ProviderRegistrations<Invariants>,
@@ -272,6 +355,9 @@ export type DependencyResolverReturn<
 		? Promise<Invariants[Key]>
 		: Invariants[Key];
 
+/**
+ * Type of the service resolvers for each service key.
+ */
 export type Resolvers<
 	Invariants extends KeyTypeInvariants,
 	Providers extends ProviderRegistrations<Invariants>,
@@ -282,53 +368,3 @@ export type Resolvers<
 		Key
 	>;
 };
-
-// export type TaggedProvider<
-// 	Invariants extends KeyTypeInvariants,
-// 	Service extends Invariants[keyof Invariants],
-// 	Arguments extends readonly Invariants[keyof Invariants][],
-// 	InjectedKeys extends KeysFromTypes<Invariants, Arguments>,
-// 	Return extends ReturnKind,
-// > = Provider<
-// 	ReturnKind extends typeof AsyncReturn ? Promise<Service> : Service,
-// 	Arguments
-// > & {
-// 	readonly [INJECTED_KEYS]: InjectedKeys;
-// 	readonly [RETURN_KIND]: Return;
-// 	readonly [PROVIDER_KIND]: ProviderKind;
-// };
-
-// export type EagerProviderInfo<
-// 	Invariants extends KeyTypeInvariants,
-// 	Service extends Invariants[keyof Invariants],
-// 	Arguments extends readonly Invariants[keyof Invariants][],
-// 	InjectedKeys extends KeysFromTypes<Invariants, Arguments>,
-// 	Scope extends DependencyScope,
-// > = {
-// 	provider: TaggedProvider<Invariants, Service, Arguments, InjectedKeys>;
-// 	readonly scope: Scope;
-// };
-
-// export type LazyProviderInfo<
-// 	Invariants extends KeyTypeInvariants,
-// 	Service extends Invariants[keyof Invariants],
-// 	Arguments extends readonly Invariants[keyof Invariants][],
-// 	InjectedKeys extends KeysFromTypes<Invariants, Arguments>,
-// 	Scope extends DependencyScope,
-// > = {
-// 	provider: TaggedProvider<Invariants, Service, Arguments, InjectedKeys>;
-// 	readonly scope: Scope;
-// 	importProvider: () => Promise<
-// 		TaggedProvider<Invariants, Service, Arguments, InjectedKeys>
-// 	>;
-// };
-
-// export type ProviderInfo<
-// 	Invariants extends KeyTypeInvariants,
-// 	Service extends Invariants[keyof Invariants],
-// 	Arguments extends readonly Invariants[keyof Invariants][],
-// 	InjectedKeys extends KeysFromTypes<Invariants, Arguments>,
-// 	Scope extends DependencyScope,
-// > =
-// 	| EagerProviderInfo<Invariants, Service, Arguments, InjectedKeys, Scope>
-// 	| LazyProviderInfo<Invariants, Service, Arguments, InjectedKeys, Scope>;

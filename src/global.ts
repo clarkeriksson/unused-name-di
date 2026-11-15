@@ -8,8 +8,15 @@ import type { ProviderInfo } from "./provider";
  */
 export declare type Pretty<T> = { [K in keyof T]: T[K] } & {};
 
+/**
+ * Represents the immutable service key to service type relationships that must hold for all dependency containers
+ * that reference it.
+ */
 export type KeyTypeInvariants = Record<PropertyKey, unknown>;
 
+/**
+ * Returns a union type of all keys that have no registration or are registered as one of the specified scopes.
+ */
 export type KeysOfScope<
 	Invariants extends KeyTypeInvariants,
 	Providers extends ProviderRegistrations<Invariants>,

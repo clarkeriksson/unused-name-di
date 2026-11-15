@@ -15,6 +15,7 @@ export type AppInvariants = {
 	TestPrimitive: symbol;
 	GlobalConfig: GlobalConfig;
 	NameService: NameService;
+	NameServicePromise: Promise<NameService>;
 	ChatService: ChatService;
 	ImageService: ImageService;
 	VideoService: VideoService;

@@ -7,186 +7,54 @@ Featuring:
 - Lazy service resolution
 - Typed service resolution by key
 - Type checking injected services by key
-- Low runtime overhead (up to 8 injected args)
 - No token system, use valid object keys
 
 **Contains no generated code or content and never will.**
 
 ## Getting Started
 
-### ServiceContext
+### Key-Type Invariants
 
-To create a dependency injection [`ServiceContainer`](#servicecontainer), a `ServiceContext` must be established.
+The type system relies on the developer providing a record type of "dependency keys" to "dependency types". This type
+is referred to as "Invariants" in most of the generic types that reference it. It is named so because it represents
+the associations between the keys and what types they represent, which cannot change in a container or any of it's
+descendants.
 
-A `ServiceContext` defines invariant key-to-type relationships that all `ServiceContainer` instances derived from it must adhere to when registering service implementations.
-
-It is strongly advised that the `ServiceContext` is defined in a file that only imports the types of the services rather than the implementations, to help avoid circular dependency issues.
-
-Below is an example of how to define a `ServiceContext`.
-
-```typescript
-import * as UnusedName from "unused-name";
-
-const context = UnusedName.context<{
-	DateService: DateService,
-	FileService: FileService,
-	ChatService: ChatService,
-	AppId: string,
-	PixelWidth: number,
-	OtherService: OtherService,
-}>();
-```
-
-A `ServiceContext` is also used to create injectable variants of service providers that are intended for use in the [`ServiceContainer`](#servicecontainer) instances derived from it.
-
-If multiple `ServiceContext` instances plan on using the same service provider, they must all create their own injectable variant.
-
-When creating these injectable service providers, services injected into them must be specified via their keys. This key tuple is strictly typed. Almost any attempts to specify an invalid set of service keys will be marked as a type error.
+For example:
 
 ```typescript
-// importing the context from before
-import { firstContext } from "...";
-import { secondContext } from "...";
-import type { ChatService } from "...";
+import { type FileService } from "...";
+import { type EmailService } from "...";
+import { type DatabaseService } from "...";
 
-// base service provider
-class ChatServiceImpl implements ChatService {
-	private readonly date: DateService;
-	private readonly file: FileService;
-
-	/**
-	 * constructor takes in args with types
-	 * registered in the service context used
-	 * for injection later
-	 */
-	constructor(date: DateService, file: FileService) {
-		this.date = date;
-		this.file = file;
-	}
-}
-
-// This export behaves as the registered class,
-// with added metadata for use in other checks.
-// It can be used in 'firstContext' containers.
-export const ChatServiceFirst = firstContext.inject(ChatServiceImpl, [
-	"DateServiceFirst",
-	"FileServiceFirst",
-]);
-
-// If we wanted to use this service provider in
-// 'secondContext' containers then we would need 
-// use this variant.
-export const ChatServiceSecond = secondContext.inject(ChatServiceImpl, [
-	"DateServiceSecond",
-	"FileServiceSecond",
-]);
-```
-
-### ServiceContainer
-
-A `ServiceContainer` is some set of service implementations complying with the root [`ServiceContext`](#servicecontext). They can be created directly from their root `ServiceContext`, or derived from other `ServiceContainer` instances.
-
-When creating a new `ServiceContainer`, service implementations can be specified or adjusted. The only limitations are as follows:
-
--   Registered implementations must comply with the key-to-type relationships defined in the root `ServiceContext`
--   Registered implementations cannot overwrite existing [singleton](#singleton) service implementations
--   Any newly registered service implementations must have all of their service dependencies already registered.
-
-The last restriction above has the added side-effect of preventing most circular dependency situations.
-
-If service implementations need to be altered, the `child()` method found on `ServiceContext` or `ServiceContainer` instances should be used to initialize a `ServiceContainerBuilder`.
-
-If no service implementations need to be altered, the `scope()` method found on `ServiceContainer` instances can be used to directly instantiate another `ServiceContainer` with an identical set of service implementations.
-
-```typescript
-import { context } from "...";
-import { ChatService0 } from "...";
-import { DateServiceImpl } from "...";
-import { FileServiceImpl } from "...";
-import { OtherServiceFactory } from "...";
-
-const container = context
-	.child()
-	.instance("AppId", "AppIdValue", "singleton")
-	.instance("PixelWidth", 16, "singleton")
-	.ctor("DateService", DateServiceImpl, "transient")
-	.ctor("FileService", FileServiceImpl, "scoped")
-	.ctor("ChatService", ChatService0, "scoped")
-	.factory("OtherService", OtherServiceFactory, "singleton")
-	.build();
-
-// now these services can all be instantiated via 'container'
-const chat: ChatService = container.resolve("ChatService");
-const appId: string = container.resolve("AppId");
-```
-
-```typescript
-const child = container.child()
-    .ctor("DateService", ..., "singleton")
-    .factory("FileService", ..., "scoped")
-    .build();
-
-// type error caused due to attempted reregistration
-// of the parent's singleton service
-const invalid = child.child()
-    .ctor("DateService", ..., "scoped")
-    .build();
-```
-
-```typescript
-import { rootContainer } from "...";
-
-function doSomeRequestScoped() {
-	const scope = rootContainer.scope();
-	const scopedServiceInstance = scope.resolve("ScopedService");
-	...
+type AppInvariants = {
+	"FileService": FileService,
+	"EmailService": EmailService,
+	"PrimaryDatabaseService": DatabaseService,
+	"SecondaryDatabaseService": DatabaseService,
+	"AppName": string
 }
 ```
 
-## Scopes
+Wherever the key `"EmailService"` is used, the type system knows type `EmailService` is associated. The same goes for `"PrimaryDatabaseService"` and `DatabaseService`, as well as `"SecondaryDatabaseService"` and `DatabaseService`.
 
-Scopes in unused-name determine the relationship between service instances resolved from the same key, both within and between [`ServiceContainer`](#servicecontainer) instances.
+So in the future, when a service is resolved through a [`DependencyContainer`](#Dependency-Containers) like `container.resolve("PrimaryDatabaseService")`, the result will be of type `DatabaseService`.
 
-### Transient
+Although all containers will be based on a set of these invariants, they do not have to register an implementation for every key-type pair. The invariants also have no bearing on what [`DependencyScope`](#Dependency-Scopes) the registrations can have. It simply acts as a contract saying what type each key can represent. 
 
-Transient services always resolve to a new service instance.
+### Dependency Containers
 
-```typescript
-import { rootContainer } from "...";
+`DependencyContainer` instances are the most important objects in this library. They are built through `DependencyContainerBuilder` instances, and act as independent scopes for dependency resolution.
 
-const rootResolved0 = rootContainer.resolve("Service");
-const rootResolved1 = rootContainer.resolve("Service");
-// rootResolved0 !== rootResolved1
-```
+`DependencyContainer` instances can implement all of or a subset of the key-type relationships defined in the [key-type invariants](#key-type-invariants) associated with it. Services must be registered in a specific order, as in order to prevent circular dependencies and ensure proper service construction, the static type checker will ensure all of a services dependencies are _already_ registered by the time the service itself is being registered.
 
-### Scoped
+#### Building Containers
 
-Scoped services resolve to the same instance within a [`ServiceContainer`](#servicecontainer), but different instances between `ServiceContainer` instances.
+There are 4 methods available on `DependencyContainerBuilder` instances when registering services:
 
-```typescript
-import { rootContainer } from "...";
-let childContainer: ServiceContainer = rootContainer.scope();
+- `add(key, serviceProvider, scope)`
+- `addLazy(key, serviceProviderImporter, scope)`
+- `addAwaited(key, asyncServiceProvider, scope)`
+- `addLazyAwaited(key, asyncServiceProviderImporter, scope)`
 
-const rootResolved0 = rootContainer.resolve("Service");
-const rootResolved1 = rootContainer.resolve("Service");
-// rootResolved0 === rootResolved1
-
-const childResolved = childContainer.resolve("Service");
-// rootResolved0 !== childResolved
-```
-
-### Singleton
-
-Singleton services resolve to the same instance in a [`ServiceContainer`](#servicecontainer) and all descendant `ServiceContainer` instances. An important note about singleton services is that their dependencies are resolved based on their `ServiceContainer` of origin. Scoped dependencies will therefore be carried across `ServiceContainer` boundaries.
-
-```typescript
-import { rootContainer } from "...";
-let childContainer: ServiceContainer = rootContainer.scope();
-
-const rootResolved0 = rootContainer.resolve("Service");
-const rootResolved1 = rootContainer.resolve("Service");
-// rootResolved0 === rootResolved1
-
-const childResolved = childContainer.resolve("Service");
-// rootResolved0 === childResolved
-```
+### Dependency Scopes

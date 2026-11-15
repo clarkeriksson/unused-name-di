@@ -7,24 +7,13 @@ import {
 	DateService,
 	FileService0,
 	FileService1,
-	GlobalConfig,
 	ImageService,
 	ImageServiceNew,
 	NameServiceFactory,
 	PixelWidth,
-	VideoService,
 	VideoServicePromise,
 } from "./setup";
 import { AppInvariants } from "./context";
-import { KeysOfScope } from "../src/global";
-import { DependencyContainer } from "../src/container";
-
-const info = {
-	provider: null,
-	async runtimeProvider() {
-		this.provider = (await import("./setup")).ChatService as any;
-	},
-};
 
 const di = DI.root<AppInvariants>().child((builder) => {
 	return builder
@@ -35,6 +24,7 @@ const di = DI.root<AppInvariants>().child((builder) => {
 		.addLazyAwaited("FileService1", async () => FileService1, "singleton")
 		.add("ChatService", ChatService, "scoped")
 		.addAwaited("NameService", NameServiceFactory, "transient")
+		.add("NameServicePromise", NameServiceFactory, "transient")
 		.add("FileService0", FileService0, "transient");
 });
 
@@ -240,12 +230,12 @@ describe("Service Factory Registration", async () => {
 });
 
 test("child initializes properly", () => {
-	const sym = Symbol();
-
 	const inject = DI.injector<AppInvariants>();
 
+	const sym = inject.instance(Symbol());
+
 	const newScope = di.child((builder) =>
-		builder.add("TestPrimitive", inject.instance(sym), "singleton"),
+		builder.add("TestPrimitive", sym, "singleton"),
 	);
 
 	const resolvedSym = newScope.resolve("TestPrimitive");
@@ -376,3 +366,74 @@ test("non-singleton services can be overriden", async () => {
 // 	expect(container.resolve("C8")).toBeDefined();
 // 	expect(container.resolve("C9")).toBeDefined();
 // });
+
+// interface IUserNameDatabase {
+// 	getUserName(userId: number): string;
+// }
+
+// interface IEmailDatabase {
+// 	getEmail(userId: number): string;
+// }
+
+// interface INameDatabase {
+// 	getName(userId: number): string;
+// }
+
+// class UserNameDatabaseImpl implements IUserNameDatabase {
+// 	getUserName(userId: number): string {
+// 		return "";
+// 	}
+// }
+
+// class EmailDatabaseImpl implements IEmailDatabase {
+// 	getEmail(userId: number): string {
+// 		return "";
+// 	}
+// }
+
+// class NameDatabaseImpl implements INameDatabase {
+// 	getName(userId: number): string {
+// 		return "";
+// 	}
+// }
+
+// interface IUserEndpoint {
+// 	getUserName(userId: number): string;
+// 	//getEmail(userId: number): string;
+// 	//getName(userId: number): string;
+// }
+
+// class UserEndpointImpl implements IUserEndpoint {
+// 	private readonly userNameDatabase: IUserNameDatabase;
+// 	private readonly emailDatabase: IEmailDatabase;
+// 	//private readonly nameDatabase: INameDatabase;
+
+// 	constructor(userNameDatabase: IUserNameDatabase, emailDatabase: IEmailDatabase) {
+// 		this.userNameDatabase = userNameDatabase;
+// 		this.emailDatabase = emailDatabase;
+// 	}
+
+// 	getUserName(userId: number): string {
+// 		return this.userNameDatabase.getUserName(userId);
+// 	}
+
+// 	getEmail(userId: number): string {
+// 		return this.emailDatabase.getEmail(userId);
+// 	}
+
+// 	// getName(userId: number): string {
+// 	// 	return this.nameDatabase.getName(userId);
+// 	// }
+// }
+
+// class BadUserEndpointImpl implements IUserEndpoint {
+// 	private readonly userNameDatabase: IUserNameDatabase;
+
+// 	constructor() {
+// 		this.userNameDatabase = new UserNameDatabaseImpl();
+// 	}
+
+// 	getUserName(userId: number): string {
+// 		return this.userNameDatabase.getUserName(userId);
+// 	}
+// }
