@@ -1,19 +1,18 @@
-import { KeysOfScope, Pretty } from "./global";
-import { INJECTED_KEYS, PROVIDER_KIND } from "./const";
-import { DependencyScope } from "./const";
-import { KeyTypeInvariants } from "./global";
+import { type KeysOfScope, type Pretty } from "./global";
+import { type DependencyScopeKey } from "./const";
+import { type KeyTypeInvariants } from "./global";
 import {
-	DependencyResolverReturn,
-	EagerAwaitedProviderInfo,
-	EagerSyncProviderInfo,
-	LazyAwaitedProviderInfo,
-	LazySyncProviderInfo,
-	Provider,
-	ProviderInfo,
-	Resolvers,
-	TaggedConstructor,
-	TaggedProvider,
+	type DependencyResolverReturn,
+	type EagerAwaitedProviderInfo,
+	type EagerSyncProviderInfo,
+	type LazyAwaitedProviderInfo,
+	type LazySyncProviderInfo,
+	type Provider,
+	type ProviderInfo,
+	type Resolvers,
+	type TaggedProvider,
 } from "./provider";
+import { InjectedKeys, ProviderKind } from "./const";
 
 /**
  * Represents a record type of dependency keys to their respective {@link ProviderInfo} entries for a given
@@ -24,7 +23,7 @@ export type ProviderRegistrations<Invariants extends KeyTypeInvariants> = {
 		Invariants,
 		Key,
 		TaggedProvider,
-		DependencyScope
+		DependencyScopeKey
 	>;
 };
 
@@ -39,7 +38,7 @@ export interface DependencyContainerBuilder<
 	 * Adds an {@link EagerSyncProviderInfo} entry to the final {@link DependencyContainer} {@link Providers}.
 	 * @param key The key of an unregistered singleton dependency, or any scoped/transient dependency.
 	 * @param provider The {@link TaggedProvider} to register to the associated key.
-	 * @param scope The {@link DependencyScope} to assign the registration to.
+	 * @param scope The {@link DependencyScopeKey} to assign the registration to.
 	 */
 	add<
 		const Key extends KeysOfScope<
@@ -52,7 +51,7 @@ export interface DependencyContainerBuilder<
 			Provider<Invariants[Key]>,
 			(keyof Providers)[]
 		>,
-		const Scope extends DependencyScope,
+		const Scope extends DependencyScopeKey,
 	>(
 		key: Key,
 		provider: TargetProvider,
@@ -73,7 +72,7 @@ export interface DependencyContainerBuilder<
 	 * Adds an {@link EagerAwaitedProviderInfo} entry to the final {@link DependencyContainer} {@link Providers}.
 	 * @param key The key of an unregistered singleton dependency, or any scoped/transient dependency.
 	 * @param provider The {@link TaggedProvider} to register to the associated key.
-	 * @param scope The {@link DependencyScope} to assign the registration to.
+	 * @param scope The {@link DependencyScopeKey} to assign the registration to.
 	 */
 	addAwaited<
 		const Key extends KeysOfScope<
@@ -86,7 +85,7 @@ export interface DependencyContainerBuilder<
 			Provider<Promise<Invariants[Key]>>,
 			(keyof Providers)[]
 		>,
-		const Scope extends DependencyScope,
+		const Scope extends DependencyScopeKey,
 	>(
 		key: Key,
 		provider: TargetProvider,
@@ -107,7 +106,7 @@ export interface DependencyContainerBuilder<
 	 * Adds a {@link LazySyncProviderInfo} entry to the final {@link DependencyContainer} {@link Providers}.
 	 * @param key The key of an unregistered singleton dependency, or any scoped/transient dependency.
 	 * @param provider The {@link TaggedProvider} to register to the associated key.
-	 * @param scope The {@link DependencyScope} to assign the registration to.
+	 * @param scope The {@link DependencyScopeKey} to assign the registration to.
 	 */
 	addLazy<
 		const Key extends KeysOfScope<
@@ -125,7 +124,7 @@ export interface DependencyContainerBuilder<
 			>,
 			any
 		>,
-		const Scope extends DependencyScope,
+		const Scope extends DependencyScopeKey,
 	>(
 		key: Key,
 		provider: () => Promise<TargetProvider>,
@@ -146,7 +145,7 @@ export interface DependencyContainerBuilder<
 	 * Adds a {@link LazyAwaitedProviderInfo} entry to the final {@link DependencyContainer} {@link Providers}.
 	 * @param key The key of an unregistered singleton dependency, or any scoped/transient dependency.
 	 * @param provider The {@link TaggedProvider} to register to the associated key.
-	 * @param scope The {@link DependencyScope} to assign the registration to.
+	 * @param scope The {@link DependencyScopeKey} to assign the registration to.
 	 */
 	addLazyAwaited<
 		const Key extends KeysOfScope<
@@ -159,7 +158,7 @@ export interface DependencyContainerBuilder<
 			Provider<Invariants[Key] | Promise<Invariants[Key]>>,
 			(keyof Providers)[]
 		>,
-		const Scope extends DependencyScope,
+		const Scope extends DependencyScopeKey,
 	>(
 		key: Key,
 		provider: () => Promise<TargetProvider>,
@@ -288,7 +287,7 @@ export class DependencyContainerImpl<
 	): () => unknown {
 		const impl = this.#impl[key]!;
 		const provider = impl.provider;
-		const argKeys = provider[INJECTED_KEYS] as PropertyKey[];
+		const argKeys = provider[InjectedKeys] as PropertyKey[];
 		const len = argKeys.length;
 		const kind = impl.kind;
 
@@ -384,7 +383,7 @@ export class DependencyContainerImpl<
 					: (impl.loading ??= impl.importProvider().then(
 							(p: any) => {
 								impl.provider = p;
-								impl.kind = p[PROVIDER_KIND];
+								impl.kind = p[ProviderKind];
 							},
 							(e: unknown) => {
 								impl.loading = undefined; // don't cache a rejection
@@ -406,7 +405,7 @@ export class DependencyContainerImpl<
 			Provider<Invariants[Key]>,
 			any
 		>,
-		const Scope extends DependencyScope,
+		const Scope extends DependencyScopeKey,
 	>(
 		key: Key,
 		provider: TargetProvider,
@@ -426,7 +425,7 @@ export class DependencyContainerImpl<
 			provider,
 			importProvider: undefined,
 			loading: undefined,
-			kind: provider[PROVIDER_KIND],
+			kind: provider[ProviderKind],
 			scope,
 			awaited: false,
 			lazy: false,
@@ -446,7 +445,7 @@ export class DependencyContainerImpl<
 			Provider<Promise<Invariants[Key]>>,
 			any
 		>,
-		const Scope extends DependencyScope,
+		const Scope extends DependencyScopeKey,
 	>(
 		key: Key,
 		provider: TargetProvider,
@@ -466,7 +465,7 @@ export class DependencyContainerImpl<
 			provider,
 			importProvider: undefined,
 			loading: undefined,
-			kind: provider[PROVIDER_KIND],
+			kind: provider[ProviderKind],
 			scope,
 			awaited: true,
 			lazy: false,
@@ -491,7 +490,7 @@ export class DependencyContainerImpl<
 			>,
 			any
 		>,
-		const Scope extends DependencyScope,
+		const Scope extends DependencyScopeKey,
 	>(
 		key: Key,
 		provider: () => Promise<TargetProvider>,
@@ -531,7 +530,7 @@ export class DependencyContainerImpl<
 			Provider<Invariants[Key] | Promise<Invariants[Key]>>,
 			any
 		>,
-		const Scope extends DependencyScope,
+		const Scope extends DependencyScopeKey,
 	>(
 		key: Key,
 		provider: () => Promise<TargetProvider>,

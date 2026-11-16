@@ -1,4 +1,4 @@
-import { DependencyContainer, DependencyContainerImpl } from "./container";
+import { type DependencyContainer, DependencyContainerImpl } from "./container";
 import { type KeyTypeInvariants } from "./global";
 import { injector } from "./injector";
 

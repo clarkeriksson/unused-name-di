@@ -1,19 +1,19 @@
 /**
  * Possible values for the scope of a registered dependency.
  */
-export type DependencyScope = "transient" | "scoped" | "singleton";
+export type DependencyScopeKey = "transient" | "scoped" | "singleton";
 
 /**
  * Possible values for the kind of service provider.
  */
-export type ProviderKind = "constructor" | "factory";
+export type ProviderKindKey = "constructor" | "factory";
 
 /**
  * Symbol used as a key for injected dependency metadata.
  */
-export const INJECTED_KEYS = Symbol();
+export const InjectedKeys = Symbol();
 
 /**
- * Symbol used as a key for {@link ProviderKind} metadata.
+ * Symbol used as a key for {@link ProviderKindKey} metadata.
  */
-export const PROVIDER_KIND = Symbol();
+export const ProviderKind = Symbol();

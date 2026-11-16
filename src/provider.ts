@@ -1,11 +1,7 @@
-import {
-	INJECTED_KEYS,
-	ProviderKind,
-	DependencyScope,
-	PROVIDER_KIND,
-} from "./const";
-import { ProviderRegistrations } from "./container";
-import { KeyTypeInvariants } from "./global";
+import { type ProviderKindKey, type DependencyScopeKey } from "./const";
+import { type ProviderRegistrations } from "./container";
+import { type KeyTypeInvariants } from "./global";
+import { InjectedKeys, ProviderKind } from "./const";
 
 /**
  * Represents a constructor that returns type {@link T} and takes in arguments of tuple type {@link A}.
@@ -90,10 +86,10 @@ type ProviderTag<
 		Invariants,
 		ProviderArgs<TargetProvider>
 	>,
-	Kind extends ProviderKind,
+	Kind extends ProviderKindKey,
 > = {
-	readonly [INJECTED_KEYS]: InjectedKeys;
-	readonly [PROVIDER_KIND]: Kind;
+	readonly [InjectedKeys]: InjectedKeys;
+	readonly [ProviderKind]: Kind;
 };
 
 /**
@@ -162,14 +158,14 @@ export type EagerSyncProviderInfo<
 		Provider<Invariants[Key]>,
 		any
 	> = any,
-	Scope extends DependencyScope = any,
+	Scope extends DependencyScopeKey = any,
 > = {
 	provider: Registration;
 	awaitedArgs: number[] | null;
 	readonly scope: Scope;
 	readonly lazy: false;
 	readonly awaited: false;
-	kind: ProviderKind;
+	kind: ProviderKindKey;
 };
 
 /**
@@ -184,14 +180,14 @@ export type EagerAwaitedProviderInfo<
 		Provider<Promise<Invariants[Key]>>,
 		any
 	> = any,
-	Scope extends DependencyScope = any,
+	Scope extends DependencyScopeKey = any,
 > = {
 	provider: Registration;
 	awaitedArgs: number[] | null;
 	readonly scope: Scope;
 	readonly lazy: false;
 	readonly awaited: true;
-	kind: ProviderKind;
+	kind: ProviderKindKey;
 };
 
 /**
@@ -208,7 +204,7 @@ export type LazySyncProviderInfo<
 		>,
 		any
 	> = any,
-	Scope extends DependencyScope = any,
+	Scope extends DependencyScopeKey = any,
 > = {
 	provider: Registration;
 	awaitedArgs: number[] | null;
@@ -216,7 +212,7 @@ export type LazySyncProviderInfo<
 	readonly scope: Scope;
 	readonly lazy: true;
 	readonly awaited: false;
-	kind: ProviderKind;
+	kind: ProviderKindKey;
 };
 
 /**
@@ -231,7 +227,7 @@ export type LazyAwaitedProviderInfo<
 		Provider<Invariants[Key] | Promise<Invariants[Key]>>,
 		any
 	> = any,
-	Scope extends DependencyScope = any,
+	Scope extends DependencyScopeKey = any,
 > = {
 	provider: Registration;
 	awaitedArgs: number[] | null;
@@ -239,7 +235,7 @@ export type LazyAwaitedProviderInfo<
 	readonly scope: Scope;
 	readonly lazy: true;
 	readonly awaited: true;
-	kind: ProviderKind;
+	kind: ProviderKindKey;
 };
 
 /**
@@ -249,7 +245,7 @@ export type ProviderInfo<
 	Invariants extends KeyTypeInvariants,
 	Key extends keyof Invariants,
 	TargetProvider extends TaggedProvider,
-	Scope extends DependencyScope,
+	Scope extends DependencyScopeKey,
 > =
 	| EagerSyncProviderInfo<
 			Invariants,
@@ -324,7 +320,7 @@ export type RequiresAsyncResolver<
 				Invariants,
 				Key,
 				TaggedProvider<Invariants, Provider, infer InjectedKeys>,
-				DependencyScope
+				DependencyScopeKey
 		  >
 		? {
 				[K in keyof Invariants]: K extends {

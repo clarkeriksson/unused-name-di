@@ -1,15 +1,16 @@
-import { KeyTypeInvariants } from "./global";
+import { type KeyTypeInvariants } from "./global";
 import {
-	Constructor,
-	Factory,
-	KeysFromTypes,
-	Provider,
-	ProviderArgs,
-	TaggedConstructor,
-	TaggedFactory,
+	type Constructor,
+	type Factory,
+	type KeysFromTypes,
+	type Provider,
+	type ProviderArgs,
+	type TaggedConstructor,
+	type TaggedFactory,
 } from "./provider";
-import { DependencyContainer } from "./container";
-import { INJECTED_KEYS, PROVIDER_KIND, ProviderKind } from "./const";
+import { type DependencyContainer } from "./container";
+import { type ProviderKindKey } from "./const";
+import { InjectedKeys, ProviderKind } from "./const";
 
 const tag = <
 	const Invariants extends KeyTypeInvariants,
@@ -21,12 +22,12 @@ const tag = <
 >(
 	provider: TargetProvider,
 	keys: InjectedKeys,
-	kind: ProviderKind,
+	kind: ProviderKindKey,
 ) =>
 	Object.setPrototypeOf(
 		Object.assign((provider as any).bind(null), {
-			[INJECTED_KEYS]: keys,
-			[PROVIDER_KIND]: kind,
+			[InjectedKeys]: keys,
+			[ProviderKind]: kind,
 		}),
 		provider,
 	);

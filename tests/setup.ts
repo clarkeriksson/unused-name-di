@@ -7,9 +7,11 @@ export interface GlobalConfig {
 	apiKey: string;
 }
 
-export const GlobalConfig = {
+export const GlobalConfigImpl = {
 	apiKey: "keykeykey",
 };
+
+export const GlobalConfig = inject.instance(GlobalConfigImpl);
 
 export interface NameService {
 	chat: ChatService;
